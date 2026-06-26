@@ -3,16 +3,6 @@ import { type z } from "zod";
 import * as cheerio from "cheerio";
 import { TRPCError } from "@trpc/server";
 import {
-  parse,
-  isValid,
-  isBefore,
-  isSameDay,
-  addDays,
-  formatDate,
-} from "date-fns";
-import {
-  getDaysArray,
-  cleanDateString,
   parseScheduleStringToDates,
 } from "~/lib/util";
 import { CalendarSchema } from "~/lib/types";

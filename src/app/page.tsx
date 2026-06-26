@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LatestPost } from "~/app/_components/post";
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
+import Calendar from "./_components/calendar";
 
 export default async function Home() {
   const session = await auth();
@@ -13,8 +14,9 @@ export default async function Home() {
 
   return (
     <HydrateClient>
-      <main>
-        
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 w-full selection:bg-primary selection:text-primary-foreground">
+        <h1 className="text-4xl font-bold">University of the East Calendar</h1>
+        <Calendar />
       </main>
     </HydrateClient>
   );
