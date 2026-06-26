@@ -54,6 +54,97 @@ const isDateInSchoolClasses = (
   return false;
 };
 
+const dateEvents = (
+  date: Date,
+  calendar: z.infer<typeof CalendarSchema>,
+): string[] => {
+  
+  const events: string[] = [];
+
+  // Check for admission events
+  calendar.admission?.forEach((admission) => {
+    if (
+      admission.dates.firstSemester.some((d) => d.getTime() === date.getTime())
+    ) {
+      events.push("admission");
+    }
+    if (
+      admission.dates.secondSemester.some((d) => d.getTime() === date.getTime())
+    ) {
+      events.push("admission");
+    }
+  });
+
+  // Check for registration events
+  calendar.registration?.forEach((registration) => {
+    if (
+      registration.dates.firstSemester.some(
+        (d) => d.getTime() === date.getTime(),
+      )
+    ) {
+      events.push("registration");
+    }
+    if (
+      registration.dates.secondSemester.some(
+        (d) => d.getTime() === date.getTime(),
+      )
+    ) {
+      events.push("registration");
+    }
+  });
+
+  // Check for first day of classes
+  if (
+    calendar.firstDayOfClasses?.firstSemester?.getTime() === date.getTime()
+  ) {
+    events.push("firstDayOfClasses");
+  }
+  if (
+    calendar.firstDayOfClasses?.secondSemester?.getTime() === date.getTime()
+  ) {
+    events.push("firstDayOfClasses");
+  }
+
+  // Check for preliminary exams
+  calendar.preliminaryExams?.firstSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("preliminaryExams");
+    }
+  });
+  calendar.preliminaryExams?.secondSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("preliminaryExams");
+    }
+  });
+
+  // Check for midterm exams
+  calendar.midtermExams?.firstSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("midtermExams");
+    }
+  });
+  calendar.midtermExams?.secondSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("midtermExams");
+    }
+  });
+
+  // Check for final exams
+  calendar.finalExams?.firstSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("finalExams");
+    }
+  });
+  calendar.finalExams?.secondSemester.forEach((exam) => {
+    if (exam.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("finalExams");
+    }
+  });
+
+  return events;
+}
+
+
 function Month({
   year,
   month,
@@ -74,7 +165,7 @@ function Month({
   return (
     <div
       className={cn(
-        "border-border bg-foreground/5 w-full rounded-lg border",
+        "border-border bg-foreground/5 w-fit rounded-lg border",
         className,
       )}
     >
@@ -98,13 +189,13 @@ function Month({
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 p-2">
         {Array.from({ length: startOffset }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-6 md:h-8 w-full" />
+          <div key={`empty-${i}`} className="h-6 md:h-8 w-auto aspect-square" />
         ))}
 
         {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
           <div
             key={day}
-            className="group relative flex h-6 md:h-8 w-full cursor-pointer items-center justify-center text-xs md:text-sm transition"
+            className="group relative flex h-6 md:h-8 w-auto aspect-square cursor-pointer items-center justify-center text-xs md:text-sm transition"
           >
             <div
               className={cn(
@@ -116,6 +207,23 @@ function Month({
             >
               {day}
             </div>
+
+              {/* Event Background */}
+              {
+                dateEvents(new Date(year, month - 1, day), calendar).length > 0 && (
+                  <div
+                    className={cn(
+                      "absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-50",
+                      ...dateEvents(
+                        new Date(year, month - 1, day),
+                        calendar,
+                      ).map((event) => EVENT_COLORS[event as keyof typeof EVENT_COLORS] || "bg-gray-500"),
+                    )}
+                  />
+                )
+              }
+
+            {/* Hover Background */}
             <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
           </div>
         ))}
