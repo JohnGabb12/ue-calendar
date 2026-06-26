@@ -1,17 +1,68 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { compareDesc, format, isWithinInterval } from "date-fns";
 import { api } from "~/trpc/react";
-import { cn } from "~/lib/utils";
+import { cn, range } from "~/lib/utils";
+import { CalendarSchema } from "~/lib/types";
+import { z } from "zod";
+
+const EVENT_COLORS = {
+  "admission": "bg-blue-500",
+  "registration": "bg-green-500",
+  "firstDayOfClasses": "bg-yellow-500",
+  "preliminaryExams": "bg-purple-500",
+  "midtermExams": "bg-pink-500",
+  "finalExams": "bg-red-500",
+  "lastRecitationDay": "bg-orange-500",
+  "deadlineForGradesSubmission": "bg-teal-500",
+  "postingOfGrades": "bg-cyan-500",
+  "holidays": "bg-gray-500",
+};
+
+const isDateInSchoolClasses = (
+  date: Date,
+  calendar: z.infer<typeof CalendarSchema>,
+) => {
+  const firstSemesterStart = calendar.firstDayOfClasses?.firstSemester;
+  const firstSemesterEnd =
+    calendar.finalExams?.firstSemester?.[0]?.date.sort(compareDesc)[0];
+  const secondSemesterStart = calendar.firstDayOfClasses?.secondSemester;
+  const secondSemesterEnd =
+    calendar.finalExams?.secondSemester?.[0]?.date.sort(compareDesc)[0];
+
+  if (firstSemesterStart && firstSemesterEnd) {
+    if (
+      isWithinInterval(date, {
+        start: firstSemesterStart,
+        end: firstSemesterEnd,
+      })
+    ) {
+      return true;
+    }
+  }
+  if (secondSemesterStart && secondSemesterEnd) {
+    if (
+      isWithinInterval(date, {
+        start: secondSemesterStart,
+        end: secondSemesterEnd,
+      })
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
 
 function Month({
   year,
   month,
+  calendar,
   className,
 }: {
   year: number;
   month: number;
+  calendar: z.infer<typeof CalendarSchema>;
   className?: string;
 }) {
   const date = new Date(year, month - 1, 1);
@@ -37,7 +88,7 @@ function Month({
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
           <div
             key={day}
-            className="text-foreground/70 flex h-8 w-full items-center justify-center text-sm font-light"
+            className="text-foreground/70 flex h-8 w-full items-center justify-center text-xs md:text-sm font-light"
           >
             <span>{day}</span>
           </div>
@@ -46,18 +97,25 @@ function Month({
 
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 p-2">
-        {/* 1. Render empty grid items for padding */}
         {Array.from({ length: startOffset }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-8 w-full" />
+          <div key={`empty-${i}`} className="h-6 md:h-8 w-full" />
         ))}
 
-        {/* 2. Render actual days of the month */}
         {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
           <div
             key={day}
-            className="group relative flex h-8 w-full cursor-pointer items-center justify-center text-sm transition"
+            className="group relative flex h-6 md:h-8 w-full cursor-pointer items-center justify-center text-xs md:text-sm transition"
           >
-            <div className="z-2">{day}</div>
+            <div
+              className={cn(
+                "z-2",
+                isDateInSchoolClasses(new Date(year, month - 1, day), calendar)
+                  ? "opacity-100"
+                  : "opacity-50",
+              )}
+            >
+              {day}
+            </div>
             <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
           </div>
         ))}
@@ -69,6 +127,10 @@ function Month({
 export default function Calendar() {
   const [calendar] = api.calendar.get.useSuspenseQuery();
 
+  const startDate = calendar.admission?.[0]?.dates.firstSemester?.sort(compareDesc)[0];
+  const startMonth = startDate ? startDate.getMonth() : 1;
+  
+
   return (
     <>
       <h2 className="text-2xl font-bold">{calendar.title}</h2>
@@ -76,13 +138,21 @@ export default function Calendar() {
         Academic Year: {calendar.years.start} - {calendar.years.end}
       </p>
 
-      <div className="grid w-full max-w-4xl grid-cols-3 gap-4">
-        {
-          // month loop
-          Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-            <Month key={month} year={calendar.years.start} month={month} />
-          ))
-        }
+      <div className="w-full max-w-4xl">
+        <h3 className="text-xl text-center p-4">{calendar.years.start}</h3>
+        <div className="grid md:grid-cols-3 gap-4 grid-cols-2">
+          {
+            // month loop
+            Array.from(range(Math.max(startMonth - 3, 1), 12)).map((month) => (
+              <Month
+                key={month}
+                year={calendar.years.start}
+                month={month}
+                calendar={calendar}
+              />
+            ))
+          }
+        </div>
       </div>
     </>
   );
