@@ -144,6 +144,8 @@ export const CalendarSchema = z.object({
     })
     .optional(),
 
+  departmentalExam: z.date().optional(),
+
   holidays: z
     .array(
       z.object({

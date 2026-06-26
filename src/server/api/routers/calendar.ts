@@ -25,9 +25,9 @@ const CATEGORY_PREFIXES = {
   registration: "– REGISTRATION –",
 };
 
-function extractCalendarData(
-  html: string,
-): z.infer<typeof CalendarSchema> | null {
+type CalendarType = z.infer<typeof CalendarSchema>;
+
+function extractCalendarData(html: string): CalendarType | null {
   const $ = cheerio.load(html);
   let dummy: any = []; // for debugging purposes
 
@@ -49,7 +49,8 @@ function extractCalendarData(
   if (!match)
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      message: "Years are invalid. Regex match failed to extract years from the title.",
+      message:
+        "Years are invalid. Regex match failed to extract years from the title.",
     });
   const years: { start: number; end: number } = {
     start: parseInt(match[1] as string),
@@ -84,8 +85,8 @@ function extractCalendarData(
   type admissionAndRegistrationScheduleEntry = {
     name: string;
     dates: {
-      firstSemester: string[];
-      secondSemester: string[];
+      firstSemester: Date[];
+      secondSemester: Date[];
     };
   };
   let admission: admissionAndRegistrationScheduleEntry[] = [];
@@ -121,76 +122,347 @@ function extractCalendarData(
           admission.push({
             name: dataName,
             dates: {
-              firstSemester: dataDate.map((d) =>
-                formatDate(d, "LLLL dd, yyyy"),
-              ),
-              secondSemester: dataDate2.map((d) =>
-                formatDate(d, "LLLL dd, yyyy"),
-              ),
+              firstSemester: dataDate,
+              secondSemester: dataDate2,
             },
           });
         } else if (currentCategory === "registration") {
           registration.push({
             name: dataName,
             dates: {
-              firstSemester: dataDate.map((d) =>
-                formatDate(d, "LLLL dd, yyyy"),
-              ),
-              secondSemester: dataDate2.map((d) =>
-                formatDate(d, "LLLL dd, yyyy"),
-              ),
+              firstSemester: dataDate,
+              secondSemester: dataDate2,
             },
           });
         }
       }
     });
 
-  dummy.push({ admission, registration }); // for debugging purposes
+  // School Calendar
+  const schoolCalendarTable = $("table")
+    .has("td strong:contains('SCHOOL CALENDAR')")
+    .first();
 
-  return { title, years, dummy, summerClasses: {} };
-}
+  // first day of classes
+  const firstDayOfClassesObject = $(schoolCalendarTable)
+    .find("tr")
+    .has('td:contains("FIRST DAY OF REGULAR CLASSES")');
+  const firstDayOfClasses = {
+    firstSemester: parseScheduleStringToDates(
+      $(firstDayOfClassesObject).find("td").eq(1).text().trim(),
+      years.start,
+    )[0],
+    secondSemester: parseScheduleStringToDates(
+      $(firstDayOfClassesObject).find("td").eq(2).text().trim(),
+      years.end,
+    )[0],
+  };
+  if (!firstDayOfClasses.firstSemester || !firstDayOfClasses.secondSemester)
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "First day of classes not parsed correctly.",
+    });
 
-export const calendarRouter = createTRPCRouter({
-  get: publicProcedure.query(
-    async (): Promise<z.infer<typeof CalendarSchema>> => {
-      try {
-        const response = await fetch(CALENDAR_URL, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          },
-          next: { revalidate: 86400 }, // 24 hours in seconds
-        });
+  // exams
+  let preliminaryExams = {
+    firstSemester: [] as { college: string; date: Date[] }[],
+    secondSemester: [] as { college: string; date: Date[] }[],
+  };
+  let midtermExams = {
+    firstSemester: [] as { college: string; date: Date[] }[],
+    secondSemester: [] as { college: string; date: Date[] }[],
+  };
+  let finalExams = {
+    firstSemester: [] as { college: string; date: Date[] }[],
+    secondSemester: [] as { college: string; date: Date[] }[],
+  };
 
-        if (!response.ok) {
+  // get colleges
+  const collegesRow = $(schoolCalendarTable)
+    .find("tr")
+    .has('td:contains("CAS")')
+    .first();
+  let collegesExamA = $(collegesRow)
+    .find("td")
+    .eq(0)
+    .text()
+    .trim()
+    .split(",")
+    .map((college) => college.trim());
+  if (collegesExamA.length === 0) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Colleges A not parsed correctly.",
+    });
+  }
+  const collegesGraduateRow = $(schoolCalendarTable)
+    .find("tr")
+    .has('td:contains("Graduate")')
+    .first();
+  let collegesExamB = $(collegesGraduateRow)
+    .find("td")
+    .eq(0)
+    .text()
+    .trim()
+    .split(/,|\&/) // Splits on either ',' OR '&'
+    .map((college) => college.trim())
+    .filter((college) => college.length > 0); // Bonus: removes any empty strings
+  if (collegesExamB.length === 0) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Colleges B not parsed correctly.",
+    });
+  }
+
+  const collegesExam = [...collegesExamA, ...collegesExamB];
+  collegesExam.forEach((college) => {
+    // may encounter error in the future
+    preliminaryExams.firstSemester.push({
+      college: college,
+      date: [],
+    });
+    preliminaryExams.secondSemester.push({
+      college: college,
+      date: [],
+    });
+    midtermExams.firstSemester.push({
+      college: college,
+      date: [],
+    });
+    midtermExams.secondSemester.push({
+      college: college,
+      date: [],
+    });
+    finalExams.firstSemester.push({
+      college: college,
+      date: [],
+    });
+    finalExams.secondSemester.push({
+      college: college,
+      date: [],
+    });
+  });
+
+  let lastRecitationDay: { firstSemester: Date[]; secondSemester: Date[] } = {
+    firstSemester: [],
+    secondSemester: [],
+  };
+  let departmentalExams: Date = new Date(0);
+
+  let currentHeader:
+    | "PRELIMINARY EXAMINATIONS"
+    | "MIDTERM EXAMINATIONS"
+    | "FINAL EXAMINATIONS"
+    | "LAST RECITATION DAY"
+    | null = null;
+
+  let currentColleges: "CAS" | "Graduate" | "All" | null = null;
+
+  $(schoolCalendarTable)
+    .find("tr")
+    .each((_, row) => {
+      const cells = $(row).find("td");
+      if ($(row).text().length === 0) return; // skip empty rows
+      const dataName = $(cells[0]).text().trim();
+
+      // header detection
+      if (dataName === "PRELIMINARY EXAMINATIONS") {
+        currentHeader = "PRELIMINARY EXAMINATIONS";
+        currentColleges = "All";
+        return;
+      } else if (dataName === "MIDTERM EXAMINATIONS") {
+        currentHeader = "MIDTERM EXAMINATIONS";
+        currentColleges = "All";
+        return;
+      } else if (dataName === "FINAL EXAMINATIONS") {
+        currentHeader = "FINAL EXAMINATIONS";
+        currentColleges = "All";
+        return;
+      } else if (dataName === "LAST RECITATION DAY") {
+        currentHeader = "LAST RECITATION DAY";
+        currentColleges = "All";
+        return;
+      } else if (cells.length < 3) {
+        currentHeader = null;
+        return;
+      } else if ($(cells[0]).text().includes("CAS")) {
+        currentColleges = "CAS";
+        return;
+      } else if ($(cells[0]).text().includes("Graduate")) {
+        currentColleges = "Graduate";
+        return;
+      }
+      if (currentHeader === null) return; // skip rows that are not under a header
+
+      // get dates
+      const dataDateText = $(cells[1]).text().trim();
+      const dataDateText2 = $(cells[2]).text().trim();
+
+      // departmental exam
+      if (dataName.includes("Departmental Examinations")) {
+        const tempDate = parseScheduleStringToDates(dataDateText, years.start);
+        if (tempDate.length > 1) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: `Failed to fetch calendar data. Status: ${response.status}`,
+            message: `Departmental Examinations should only have one date. Found ${tempDate.length} dates.`,
           });
         }
+        departmentalExams = tempDate[0] || new Date(0);
+        return;
+      }
 
-        const html = await response.text();
-        const $ = cheerio.load(html, { xml: true });
-
-        const calendarData = extractCalendarData(html);
-        if (!calendarData) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to extract calendar data from the HTML.",
-          });
-        }
-        const calendarTitle = calendarData.title;
-        const calendarYears = calendarData.years;
-
-        return CalendarSchema.parse(calendarData);
-      } catch (error) {
+      // validation for date parsing
+      if (!dataDateText || !dataDateText2) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: (error as Error).message,
+          message: `Failed to extract dates for ${dataName}.`,
+        });
+      }
+      if (dataDateText.length < 1 || dataDateText2.length < 1) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to extract dates for ${dataName}.`,
         });
       }
 
-      return CalendarSchema.parse({});
-    },
-  ),
+      const dataDate = parseScheduleStringToDates(dataDateText, years.start);
+      const dataDate2 = parseScheduleStringToDates(dataDateText2, years.end);
+
+      if (currentHeader === "PRELIMINARY EXAMINATIONS") {
+        preliminaryExams.firstSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate);
+          }
+        });
+        preliminaryExams.secondSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate2);
+          }
+        });
+      } else if (currentHeader === "MIDTERM EXAMINATIONS") {
+        midtermExams.firstSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate);
+          }
+        });
+        midtermExams.secondSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate2);
+          }
+        });
+      } else if (currentHeader === "FINAL EXAMINATIONS") {
+        finalExams.firstSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate);
+          }
+        });
+        finalExams.secondSemester.forEach((exam) => {
+          if (
+            (currentColleges === "CAS" &&
+              collegesExamA.includes(exam.college)) ||
+            (currentColleges === "Graduate" &&
+              collegesExamB.includes(exam.college)) ||
+            currentColleges === "All"
+          ) {
+            exam.date.push(...dataDate2);
+          }
+        });
+      } else if (currentHeader === "LAST RECITATION DAY") {
+        lastRecitationDay.firstSemester.push(...dataDate);
+        lastRecitationDay.secondSemester.push(...dataDate2);
+      }
+    });
+
+  return {
+    title,
+    years,
+    admission: admission,
+    registration: registration,
+    firstDayOfClasses: firstDayOfClasses,
+    preliminaryExams: preliminaryExams,
+    midtermExams: midtermExams,
+    finalExams: finalExams,
+    departmentalExam: departmentalExams,
+    lastRecitationDay: lastRecitationDay,
+    summerClasses: {},
+    dummy,
+  } as CalendarType;
+}
+
+export const calendarRouter = createTRPCRouter({
+  get: publicProcedure.query(async (): Promise<CalendarType> => {
+    try {
+      const response = await fetch(CALENDAR_URL, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+        next: { revalidate: 86400 }, // 24 hours in seconds
+      });
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to fetch calendar data. Status: ${response.status}`,
+        });
+      }
+
+      const html = await response.text();
+      const $ = cheerio.load(html, { xml: true });
+
+      const extractedData = extractCalendarData(html);
+      if (!extractedData) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to extract calendar data from the HTML.",
+        });
+      }
+      const calendarData = CalendarSchema.parse(extractCalendarData(html));
+      if (!calendarData) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to validate calendar data against the schema.",
+        });
+      }
+
+      return calendarData;
+    } catch (error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: (error as Error).message,
+      });
+    }
+
+    return CalendarSchema.parse({});
+  }),
 });
