@@ -323,7 +323,9 @@ function extractCalendarData(html: string): CalendarType | null {
       const dataDate = parseScheduleStringToDates(dataDateText, years.start);
       const dataDate2 = parseScheduleStringToDates(dataDateText2, years.end);
 
+      // dummy.push(dataName)
       if (dataName.includes("LAST DAY OF POSTING")) {
+        // dummy.push("Posting of Grades");
         postingOfGrades = {
           firstSemester: dataDate[0] ?? new Date(0),
           secondSemester: dataDate2[0] ?? new Date(0),
@@ -447,7 +449,7 @@ function extractCalendarData(html: string): CalendarType | null {
       } else if (currentSummerCategory === "registration") {
         summerClassesRegistration.push({ name: dataName, dates: dataDate });
       } else if (currentSummerCategory === "calendar") {
-        if (dataName.includes("FIRST DAY OF REGULAR CLASSES")) {
+        if (dataName.includes("FIRST DAY OF CLASSES")) {
           summerClassesFirstDayOfClasses.push(...dataDate);
         } else if (dataName.includes("MID-TERM EXAMINATIONS")) {
           summerClassesMidtermExams.push(...dataDate);

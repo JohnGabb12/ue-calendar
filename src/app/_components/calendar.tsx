@@ -279,7 +279,7 @@ export default function Calendar() {
     calendar.admission?.[0]?.dates.firstSemester?.sort(compareDesc)[0];
   const startMonth = startDate ? startDate.getMonth() : 1;
 
-  console.log(calendar.postingOfGrades?.firstSemester);
+  console.log(calendar);
 
   return (
     <>
