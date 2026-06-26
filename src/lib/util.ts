@@ -36,9 +36,7 @@ export function parseScheduleStringToDates(
   const cleaned = baseCleaned.replace(/\s*\([A-Za-z]+\)/g, "");
 
   // --- NEW VARIANT 5: Same-Month Short Ranges (e.g., "Jan 04 – 08, 2027") ---
-  const sameMonthRangeMatch = cleaned.match(
-    /^([A-Za-z]+)\s+(\d+)\s*[–-]\s*(\d+),?\s*(\d{4})/,
-  );
+  const sameMonthRangeMatch = /^([A-Za-z]+)\s+(\d+)\s*[–-]\s*(\d+),?\s*(\d{4})/.exec(cleaned);
 
   if (sameMonthRangeMatch) {
     const [_, month, startDay, endDay, year] = sameMonthRangeMatch;
@@ -58,22 +56,22 @@ export function parseScheduleStringToDates(
     const parts = cleaned.split(dashesRegex).map((p) => p.trim());
     
     if (parts.length === 2) {
-      const leftHasMonth = /[A-Za-z]+/.test(parts[0] as string);
-      const rightHasMonth = /[A-Za-z]+/.test(parts[1] as string);
+      const leftHasMonth = /[A-Za-z]+/.test(parts[0]!);
+      const rightHasMonth = /[A-Za-z]+/.test(parts[1]!);
 
       // If both sides specify a month (e.g., "May 11" and "May 20")
       if (leftHasMonth && rightHasMonth) {
-        const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
-        const endYear = yearMatch ? parseInt(yearMatch[1] as string) : currentYear;
+        const yearMatch = /,?\s*(\d{4})$/.exec(cleaned);
+        const endYear = yearMatch ? parseInt(yearMatch[1]!) : currentYear;
 
-        const startHasYear = /\d{4}/.test(parts[0] as string);
+        const startHasYear = /\d{4}/.test(parts[0]!);
         const startStr = startHasYear ? parts[0] : `${parts[0]}, ${endYear}`;
         
         // Clean trailing year from the end string if it exists before appending
-        const endStr = startHasYear ? parts[1] : `${(parts[1] as string).replace(/,?\s*\d{4}$/, "")}, ${endYear}`;
+        const endStr = startHasYear ? parts[1] : `${(parts[1]!).replace(/,?\s*\d{4}$/, "")}, ${endYear}`;
 
-        const startDate = new Date(startStr as string);
-        const endDate = new Date(endStr as string);
+        const startDate = new Date(startStr!);
+        const endDate = new Date(endStr!);
 
         if (isValid(startDate) && isValid(endDate)) {
           return getDaysArray(startDate, endDate);
@@ -98,17 +96,17 @@ export function parseScheduleStringToDates(
     }
 
     if (parts.length === 2) {
-      const yearMatch = (parts[1] as string).match(/,?\s*(\d{4})$/);
+      const yearMatch = /,?\s*(\d{4})$/.exec((parts[1]!));
       const endYear = yearMatch
-        ? parseInt(yearMatch[1] as string)
+        ? parseInt(yearMatch[1]!)
         : currentYear;
 
-      const startHasYear = /\d{4}/.test(parts[0] as string);
+      const startHasYear = /\d{4}/.test(parts[0]!);
       const startStr = startHasYear ? parts[0] : `${parts[0]}, ${endYear}`;
       const endStr = parts[1];
 
-      const startDate = new Date(startStr as string);
-      const endDate = new Date(endStr as string);
+      const startDate = new Date(startStr!);
+      const endDate = new Date(endStr!);
 
       if (isValid(startDate) && isValid(endDate)) {
         return getDaysArray(startDate, endDate);
@@ -119,15 +117,15 @@ export function parseScheduleStringToDates(
   // --- NEW VARIANT 6: Multi-Month Detached Dates with "&" (e.g., "Aug 27 & Sept 01") ---
   if (cleaned.includes("&")) {
     const parts = cleaned.split("&").map((p) => p.trim());
-    const leftHasMonth = /[A-Za-z]+/.test(parts[0] as string);
-    const rightHasMonth = /[A-Za-z]+/.test(parts[1] as string);
+    const leftHasMonth = /[A-Za-z]+/.test(parts[0]!);
+    const rightHasMonth = /[A-Za-z]+/.test(parts[1]!);
 
     if (leftHasMonth && rightHasMonth) {
-      const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
+      const yearMatch = /,?\s*(\d{4})$/.exec(cleaned);
       const year = yearMatch ? yearMatch[1] : currentYear;
 
-      const cleanLeft = (parts[0] as string).replace(/,?\s*\d{4}$/, "");
-      const cleanRight = (parts[1] as string).replace(/,?\s*\d{4}$/, "");
+      const cleanLeft = (parts[0]!).replace(/,?\s*\d{4}$/, "");
+      const cleanRight = (parts[1]!).replace(/,?\s*\d{4}$/, "");
 
       const dateLeft = new Date(`${cleanLeft}, ${year}`);
       const dateRight = new Date(`${cleanRight}, ${year}`);
@@ -142,15 +140,15 @@ export function parseScheduleStringToDates(
   // --- VARIANT 2: Detached Dates with "&" (e.g., "Sept 02 & 07") ---
   if (cleaned.includes("&")) {
     const parts = cleaned.split("&").map((p) => p.trim());
-    const monthMatch = (parts[0] as string).match(/^([A-Za-z]+)/);
+    const monthMatch = /^([A-Za-z]+)/.exec((parts[0]!));
 
     if (monthMatch) {
       const month = monthMatch[1];
-      const yearMatch = (cleaned as string).match(/,?\s*(\d{4})$/);
+      const yearMatch = /,?\s*(\d{4})$/.exec((cleaned));
       const year = yearMatch ? yearMatch[1] : currentYear;
 
       parts.forEach((part) => {
-        const dayMatch = part.match(/\d+/);
+        const dayMatch = /\d+/.exec(part);
         if (dayMatch) {
           const constructedStr = `${month} ${dayMatch[0]}, ${year}`;
           const d = new Date(constructedStr);
@@ -162,10 +160,10 @@ export function parseScheduleStringToDates(
   }
 
   // --- VARIANT 3: Mid-Month Ranges without standalone Year (e.g., "March 24 -28") ---
-  const midMonthRangeMatch = cleaned.match(/^([A-Za-z]+)\s+(\d+)\s*-\s*(\d+)/);
+  const midMonthRangeMatch = /^([A-Za-z]+)\s+(\d+)\s*-\s*(\d+)/.exec(cleaned);
   if (midMonthRangeMatch) {
     const [_, month, startDay, endDay] = midMonthRangeMatch;
-    const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
+    const yearMatch = /,?\s*(\d{4})$/.exec(cleaned);
     const year = yearMatch ? yearMatch[1] : currentYear;
 
     const startDate = new Date(`${month} ${startDay}, ${year}`);
@@ -177,7 +175,7 @@ export function parseScheduleStringToDates(
   }
 
   // --- VARIANT 4: Single Dates (e.g., "Sept 04") ---
-  const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
+  const yearMatch = /,?\s*(\d{4})$/.exec(cleaned);
   const year = yearMatch ? yearMatch[1] : currentYear;
   const cleanSingle = cleaned.replace(/,?\s*\d{4}$/, "");
 

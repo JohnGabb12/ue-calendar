@@ -70,7 +70,7 @@ export type CalendarData = {
     deadlineForGradesSubmission?: Date[];
   };
 
-  dummy?: any; // Optional property to satisfy the interface requirement
+  dummy?: []; // Optional property to satisfy the interface requirement
 };
 
 export const CalendarSchema = z.object({

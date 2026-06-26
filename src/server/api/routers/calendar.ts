@@ -1,5 +1,5 @@
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { z } from "zod";
+import { type z } from "zod";
 import * as cheerio from "cheerio";
 import { TRPCError } from "@trpc/server";
 import {
@@ -28,8 +28,8 @@ const CATEGORY_PREFIXES = {
 type CalendarType = z.infer<typeof CalendarSchema>;
 
 function extractCalendarData(html: string): CalendarType | null {
-  const $ = cheerio.load(html);
-  let dummy: any = []; // for debugging purposes
+  const $ = cheerio.load(html, { xml: true });
+  // let dummy: any = []; // for debugging purposes
 
   // Title
   const title = $("h6 em")
@@ -45,7 +45,7 @@ function extractCalendarData(html: string): CalendarType | null {
     });
 
   // Years
-  const match = title.match(/(\d{4})–(\d{4})/);
+  const match = /(\d{4})–(\d{4})/.exec(title);
   if (!match)
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
@@ -53,8 +53,8 @@ function extractCalendarData(html: string): CalendarType | null {
         "Years are invalid. Regex match failed to extract years from the title.",
     });
   const years: { start: number; end: number } = {
-    start: parseInt(match[1] as string),
-    end: parseInt(match[2] as string),
+    start: parseInt(match[1]!),
+    end: parseInt(match[2]!),
   };
   if (!years)
     throw new TRPCError({
@@ -89,8 +89,8 @@ function extractCalendarData(html: string): CalendarType | null {
       secondSemester: Date[];
     };
   };
-  let admission: admissionAndRegistrationScheduleEntry[] = [];
-  let registration: admissionAndRegistrationScheduleEntry[] = [];
+  const admission: admissionAndRegistrationScheduleEntry[] = [];
+  const registration: admissionAndRegistrationScheduleEntry[] = [];
   let currentCategory: "admission" | "registration" | null = null;
 
   $(admissionAndRegistrationTable)
@@ -164,15 +164,15 @@ function extractCalendarData(html: string): CalendarType | null {
     });
 
   // exams
-  let preliminaryExams = {
+  const preliminaryExams = {
     firstSemester: [] as { college: string; date: Date[] }[],
     secondSemester: [] as { college: string; date: Date[] }[],
   };
-  let midtermExams = {
+  const midtermExams = {
     firstSemester: [] as { college: string; date: Date[] }[],
     secondSemester: [] as { college: string; date: Date[] }[],
   };
-  let finalExams = {
+  const finalExams = {
     firstSemester: [] as { college: string; date: Date[] }[],
     secondSemester: [] as { college: string; date: Date[] }[],
   };
@@ -182,7 +182,7 @@ function extractCalendarData(html: string): CalendarType | null {
     .find("tr")
     .has('td:contains("CAS")')
     .first();
-  let collegesExamA = $(collegesRow)
+  const collegesExamA = $(collegesRow)
     .find("td")
     .eq(0)
     .text()
@@ -199,7 +199,7 @@ function extractCalendarData(html: string): CalendarType | null {
     .find("tr")
     .has('td:contains("Graduate")')
     .first();
-  let collegesExamB = $(collegesGraduateRow)
+  const collegesExamB = $(collegesGraduateRow)
     .find("td")
     .eq(0)
     .text()
@@ -243,7 +243,7 @@ function extractCalendarData(html: string): CalendarType | null {
     });
   });
 
-  let lastRecitationDay: { firstSemester: Date[]; secondSemester: Date[] } = {
+  const lastRecitationDay: { firstSemester: Date[]; secondSemester: Date[] } = {
     firstSemester: [],
     secondSemester: [],
   };
@@ -307,7 +307,7 @@ function extractCalendarData(html: string): CalendarType | null {
             message: `Departmental Examinations should only have one date. Found ${tempDate.length} dates.`,
           });
         }
-        departmentalExams = tempDate[0] || new Date(0);
+        departmentalExams = tempDate[0] ?? new Date(0);
         return;
       }
 
@@ -410,13 +410,13 @@ function extractCalendarData(html: string): CalendarType | null {
   let currentSummerCategory: "admission" | "registration" | "calendar" | null =
     null;
 
-  let summerClassesAdmission: { name: string; dates: Date[] }[] = [];
-  let summerClassesRegistration: { name: string; dates: Date[] }[] = [];
-  let summerClassesFirstDayOfClasses: Date[] = [];
-  let summerClassesMidtermExams: Date[] = [];
-  let summerClassesFinalExams: Date[] = [];
-  let summerClassesLastRecitationDay: Date[] = [];
-  let summerClassesDeadlineForGradesSubmission: Date[] = [];
+  const summerClassesAdmission: { name: string; dates: Date[] }[] = [];
+  const summerClassesRegistration: { name: string; dates: Date[] }[] = [];
+  const summerClassesFirstDayOfClasses: Date[] = [];
+  const summerClassesMidtermExams: Date[] = [];
+  const summerClassesFinalExams: Date[] = [];
+  const summerClassesLastRecitationDay: Date[] = [];
+  const summerClassesDeadlineForGradesSubmission: Date[] = [];
 
   $(summerClassesTable)
     .find("tr")
@@ -520,7 +520,6 @@ export const calendarRouter = createTRPCRouter({
       }
 
       const html = await response.text();
-      const $ = cheerio.load(html, { xml: true });
 
       const extractedData = extractCalendarData(html);
       if (!extractedData) {
