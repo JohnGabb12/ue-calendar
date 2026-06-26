@@ -193,7 +193,7 @@ export const CalendarSchema = z.object({
     finalExams: z.array(z.date()).optional(),
     lastRecitationDay: z.array(z.date()).optional(),
     deadlineForGradesSubmission: z.array(z.date()).optional(),
-  }),
+  }).optional(),
 
   dummy: z.any().optional(),
 });

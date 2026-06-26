@@ -403,6 +403,88 @@ function extractCalendarData(html: string): CalendarType | null {
       }
     });
 
+  const summerClassesTable = $("table")
+    .has("td strong:contains('I. SCHEDULE OF ADMISSION')")
+    .first();
+
+  let currentSummerCategory: "admission" | "registration" | "calendar" | null =
+    null;
+
+  let summerClassesAdmission: { name: string; dates: Date[] }[] = [];
+  let summerClassesRegistration: { name: string; dates: Date[] }[] = [];
+  let summerClassesFirstDayOfClasses: Date[] = [];
+  let summerClassesMidtermExams: Date[] = [];
+  let summerClassesFinalExams: Date[] = [];
+  let summerClassesLastRecitationDay: Date[] = [];
+  let summerClassesDeadlineForGradesSubmission: Date[] = [];
+
+  $(summerClassesTable)
+    .find("tr")
+    .each((_, row) => {
+      const cells = $(row).find("td");
+      if ($(row).text().length === 0) return; // skip empty rows
+      if (cells.length === 1) {
+        const cellText = $(cells[0]).text().trim();
+        if (cellText.includes("ADMISSION")) {
+          currentSummerCategory = "admission";
+        } else if (cellText.includes("REGISTRATION")) {
+          currentSummerCategory = "registration";
+        } else if (cellText.includes("SCHOOL CALENDAR")) {
+          currentSummerCategory = "calendar";
+        }
+        return; // Skip to the next row after setting the category
+      }
+
+      const dataName = $(cells[0]).text().trim();
+      const dataDateText = $(cells[1]).text().trim();
+      const dataDate = parseScheduleStringToDates(dataDateText, years.end);
+
+      if (currentSummerCategory === "admission") {
+        summerClassesAdmission.push({ name: dataName, dates: dataDate });
+      } else if (currentSummerCategory === "registration") {
+        summerClassesRegistration.push({ name: dataName, dates: dataDate });
+      } else if (currentSummerCategory === "calendar") {
+        if (dataName.includes("FIRST DAY OF REGULAR CLASSES")) {
+          summerClassesFirstDayOfClasses.push(...dataDate);
+        } else if (dataName.includes("MID-TERM EXAMINATIONS")) {
+          summerClassesMidtermExams.push(...dataDate);
+        } else if (dataName.includes("FINAL EXAMINATIONS")) {
+          summerClassesFinalExams.push(...dataDate);
+        } else if (dataName.includes("LAST RECITATION DAY")) {
+          summerClassesLastRecitationDay.push(...dataDate);
+        } else if (dataName.includes("DEADLINE FOR POSTING OF STUDENTS")) {
+          summerClassesDeadlineForGradesSubmission.push(...dataDate);
+        }
+      }
+    });
+
+  const summerClasses = {
+    admission:
+      summerClassesAdmission.length > 0 ? summerClassesAdmission : undefined,
+    registration:
+      summerClassesRegistration.length > 0
+        ? summerClassesRegistration
+        : undefined,
+    firstDayOfClasses:
+      summerClassesFirstDayOfClasses.length > 0
+        ? summerClassesFirstDayOfClasses
+        : undefined,
+    midtermExams:
+      summerClassesMidtermExams.length > 0
+        ? summerClassesMidtermExams
+        : undefined,
+    finalExams:
+      summerClassesFinalExams.length > 0 ? summerClassesFinalExams : undefined,
+    lastRecitationDay:
+      summerClassesLastRecitationDay.length > 0
+        ? summerClassesLastRecitationDay
+        : undefined,
+    deadlineForGradesSubmission:
+      summerClassesDeadlineForGradesSubmission.length > 0
+        ? summerClassesDeadlineForGradesSubmission
+        : undefined,
+  };
+
   return {
     title,
     years,
@@ -414,8 +496,8 @@ function extractCalendarData(html: string): CalendarType | null {
     finalExams: finalExams,
     departmentalExam: departmentalExams,
     lastRecitationDay: lastRecitationDay,
-    summerClasses: {},
-    dummy,
+    summerClasses: summerClasses,
+    // dummy,
   } as CalendarType;
 }
 
@@ -427,7 +509,7 @@ export const calendarRouter = createTRPCRouter({
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         },
-        next: { revalidate: 86400 }, // 24 hours in seconds
+        next: { revalidate: 60 * 60 * 24 }, // 24 hours in seconds
       });
 
       if (!response.ok) {

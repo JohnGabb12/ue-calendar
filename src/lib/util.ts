@@ -32,7 +32,6 @@ export function parseScheduleStringToDates(
   const dates: Date[] = [];
   
   // Strip out day-of-the-week markers in parentheticals like (Th), (T), (Wed), etc.
-  // This prevents them from confusing the regex or the Date parser.
   const baseCleaned = cleanDateString(input);
   const cleaned = baseCleaned.replace(/\s*\([A-Za-z]+\)/g, "");
 
@@ -49,6 +48,37 @@ export function parseScheduleStringToDates(
 
     if (isValid(startDate) && isValid(endDate)) {
       return getDaysArray(startDate, endDate);
+    }
+  }
+
+  // --- NEW VARIANT: Full Multi-Month / Explicit Month Ranges (e.g., "May 11 – May 20", "May 11 — May 20") ---
+  // This explicitly catches strings that have a month on both sides separated by an en-dash, em-dash, or hyphen
+  const dashesRegex = /[–—-]/; 
+  if (dashesRegex.test(cleaned)) {
+    const parts = cleaned.split(dashesRegex).map((p) => p.trim());
+    
+    if (parts.length === 2) {
+      const leftHasMonth = /[A-Za-z]+/.test(parts[0] as string);
+      const rightHasMonth = /[A-Za-z]+/.test(parts[1] as string);
+
+      // If both sides specify a month (e.g., "May 11" and "May 20")
+      if (leftHasMonth && rightHasMonth) {
+        const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
+        const endYear = yearMatch ? parseInt(yearMatch[1] as string) : currentYear;
+
+        const startHasYear = /\d{4}/.test(parts[0] as string);
+        const startStr = startHasYear ? parts[0] : `${parts[0]}, ${endYear}`;
+        
+        // Clean trailing year from the end string if it exists before appending
+        const endStr = startHasYear ? parts[1] : `${(parts[1] as string).replace(/,?\s*\d{4}$/, "")}, ${endYear}`;
+
+        const startDate = new Date(startStr as string);
+        const endDate = new Date(endStr as string);
+
+        if (isValid(startDate) && isValid(endDate)) {
+          return getDaysArray(startDate, endDate);
+        }
+      }
     }
   }
 
@@ -87,7 +117,6 @@ export function parseScheduleStringToDates(
   }
 
   // --- NEW VARIANT 6: Multi-Month Detached Dates with "&" (e.g., "Aug 27 & Sept 01") ---
-  // Matches expressions where both sides of the "&" contain their own alphabetical month
   if (cleaned.includes("&")) {
     const parts = cleaned.split("&").map((p) => p.trim());
     const leftHasMonth = /[A-Za-z]+/.test(parts[0] as string);
@@ -97,7 +126,6 @@ export function parseScheduleStringToDates(
       const yearMatch = cleaned.match(/,?\s*(\d{4})$/);
       const year = yearMatch ? yearMatch[1] : currentYear;
 
-      // Clean trailing years from individual parts to avoid double-year strings
       const cleanLeft = (parts[0] as string).replace(/,?\s*\d{4}$/, "");
       const cleanRight = (parts[1] as string).replace(/,?\s*\d{4}$/, "");
 
