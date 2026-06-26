@@ -1,24 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { compareDesc, format, isWithinInterval } from "date-fns";
+import {
+  compareAsc,
+  compareDesc,
+  format,
+  isWithinInterval,
+  isEqual,
+} from "date-fns";
 import { api } from "~/trpc/react";
 import { cn, range } from "~/lib/utils";
 import { CalendarSchema } from "~/lib/types";
 import { z } from "zod";
 
-const EVENT_COLORS = {
-  admission: "bg-blue-500",
-  registration: "bg-green-500",
-  firstDayOfClasses: "bg-yellow-500",
-  preliminaryExams: "bg-purple-500",
-  midtermExams: "bg-pink-500",
-  finalExams: "bg-red-500",
-  lastRecitationDay: "bg-orange-500",
-  deadlineForGradesSubmission: "bg-teal-500",
-  postingOfGrades: "bg-cyan-500",
-  holidays: "bg-gray-500",
-};
+const EVENT_CATEGORIES = [
+  { name: "admission", color: "bg-blue-500" },
+  { name: "registration", color: "bg-green-500" },
+  { name: "classes", color: "bg-yellow-500" },
+  { name: "prelim", color: "bg-purple-500" },
+  { name: "midterm", color: "bg-pink-500" },
+  { name: "final", color: "bg-red-500" },
+  { name: "grades", color: "bg-cyan-500" },
+  { name: "holidays", color: "bg-gray-500" },
+];
 
 const isDateInSchoolClasses = (
   date: Date,
@@ -57,124 +61,185 @@ const isDateInSchoolClasses = (
 const dateEvents = (
   date: Date,
   calendar: z.infer<typeof CalendarSchema>,
-): string[] => {
-  const events: string[] = [];
+): Set<{ name: string; category: string }> => {
+  // Use a Set to store unique event string identifiers automatically
+  const events = new Set<{ name: string; category: string }>();
+  const targetTime = date.getTime(); // Cache this to avoid repetitive calls
 
   // Check for admission events
   calendar.admission?.forEach((admission) => {
     if (
-      admission.dates.firstSemester.some((d) => d.getTime() === date.getTime())
+      isEqual(
+        admission.dates.firstSemester?.sort(compareAsc)[0] as Date,
+        date,
+      ) ||
+      isEqual(
+        admission.dates.secondSemester?.sort(compareAsc)[0] as Date,
+        date,
+      ) && ![...events].some((e) => e.name === admission.name)
     ) {
-      events.push("admission");
-    }
-    if (
-      admission.dates.secondSemester.some((d) => d.getTime() === date.getTime())
-    ) {
-      events.push("admission");
+      events.add({ name: admission.name, category: "admission" });
     }
   });
 
   // Check for registration events
   calendar.registration?.forEach((registration) => {
     if (
-      registration.dates.firstSemester.some(
-        (d) => d.getTime() === date.getTime(),
-      )
+      (isEqual(
+        registration.dates.firstSemester?.sort(compareAsc)[0] as Date,
+        date,
+      ) ||
+        isEqual(
+          registration.dates.secondSemester?.sort(compareAsc)[0] as Date,
+          date,
+        )) &&
+      ![...events].some((e) => e.name === registration.name)
     ) {
-      events.push("registration");
-    }
-    if (
-      registration.dates.secondSemester.some(
-        (d) => d.getTime() === date.getTime(),
-      )
-    ) {
-      events.push("registration");
+      events.add({ name: registration.name, category: "registration" });
     }
   });
 
   // Check for first day of classes
-  if (calendar.firstDayOfClasses?.firstSemester?.getTime() === date.getTime()) {
-    events.push("firstDayOfClasses");
+  if (calendar.firstDayOfClasses?.firstSemester?.getTime() === targetTime) {
+    events.add({ name: "First Day of Classes", category: "classes" });
   }
-  if (
-    calendar.firstDayOfClasses?.secondSemester?.getTime() === date.getTime()
-  ) {
-    events.push("firstDayOfClasses");
+  if (calendar.firstDayOfClasses?.secondSemester?.getTime() === targetTime) {
+    events.add({ name: "First Day of Classes", category: "classes" });
   }
 
   // Check for preliminary exams
   calendar.preliminaryExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("preliminaryExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Preliminary Exams")
+    ) {
+      events.add({ name: "Preliminary Exams", category: "prelim" });
     }
   });
   calendar.preliminaryExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("preliminaryExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Preliminary Exams")
+    ) {
+      events.add({ name: "Preliminary Exams", category: "prelim" });
     }
   });
 
   // Check for midterm exams
   calendar.midtermExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("midtermExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Midterm Exams")
+    ) {
+      events.add({ name: "Midterm Exams", category: "midterm" });
     }
   });
   calendar.midtermExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("midtermExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Midterm Exams")
+    ) {
+      events.add({ name: "Midterm Exams", category: "midterm" });
     }
   });
 
   // Check for final exams
   calendar.finalExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("finalExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Final Exams")
+    ) {
+      events.add({ name: "Final Exams", category: "final" });
     }
   });
   calendar.finalExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("finalExams");
+    if (
+      exam.date.some((d) => isEqual(d, date)) &&
+      ![...events].some((e) => e.name === "Final Exams")
+    ) {
+      events.add({ name: "Final Exams", category: "final" });
     }
   });
 
   // Check for last recitation day
   if (
-    calendar.lastRecitationDay?.firstSemester?.some(
-      (d) => d.getTime() === date.getTime(),
-    )
+    calendar.lastRecitationDay?.firstSemester?.some((d) => isEqual(d, date))
   ) {
-    events.push("lastRecitationDay");
+    events.add({ name: "Last Recitation Day", category: "classes" });
   }
   if (
-    calendar.lastRecitationDay?.secondSemester?.some(
-      (d) => d.getTime() === date.getTime(),
-    )
+    calendar.lastRecitationDay?.secondSemester?.some((d) => isEqual(d, date))
   ) {
-    events.push("lastRecitationDay");
+    events.add({ name: "Last Recitation Day", category: "classes" });
   }
 
   // Check for posting of grades
-  if (
-    calendar.postingOfGrades?.firstSemester?.getTime() === date.getTime()
-  ) {
-    events.push("postingOfGrades");
+  if (calendar.postingOfGrades?.firstSemester?.getTime() === targetTime) {
+    events.add({ name: "Posting of Grades", category: "grades" });
   }
-  if (
-    calendar.postingOfGrades?.secondSemester?.getTime() === date.getTime()
-  ) {
-    events.push("postingOfGrades");
+  if (calendar.postingOfGrades?.secondSemester?.getTime() === targetTime) {
+    events.add({ name: "Posting of Grades", category: "grades" });
   }
 
   // Check for holidays
   calendar.holidays?.forEach((holiday) => {
-    if (holiday.date.some((d) => d.getTime() === date.getTime())) {
-      events.push("holidays");
+    if (holiday.date.some((d) => d.getTime() === targetTime)) {
+      events.add({ name: "Holidays", category: "holidays" });
     }
   });
 
+  // Convert the Set back to an array before returning
   return events;
 };
+
+function Day({
+  date,
+  calendar,
+  className,
+}: {
+  date: Date;
+  calendar: z.infer<typeof CalendarSchema>;
+  className?: string;
+}) {
+  const events = dateEvents(date, calendar);
+
+  console.log(`Events for ${format(date, "yyyy-MM-dd")}:`, Array.from(events));
+
+  return (
+    <div
+      className={cn(
+        "group relative flex aspect-square h-6 w-auto cursor-pointer items-center justify-center text-xs transition md:h-8 md:text-sm",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "z-2",
+          isDateInSchoolClasses(date, calendar) ? "opacity-100" : "opacity-50",
+        )}
+      >
+        {date.getDate()}
+      </div>
+
+      {/* Event Background */}
+      <div className="absolute bottom-0 left-1/2 flex w-fit -translate-x-1/2 flex-col justify-center">
+        {Array.from(events).map((event) => (
+          <div
+            key={format(date, "yyyy-MM-dd") + event.name}
+            className={cn(
+              "h-1 w-1 rounded-full opacity-50",
+              EVENT_CATEGORIES.find((cat) => cat.name === event.category)
+                ?.color || "bg-gray-500",
+            )}
+          />
+        ))}
+      </div>
+
+      {/* Hover Background */}
+      <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
+    </div>
+  );
+}
 
 function Month({
   year,
@@ -224,48 +289,11 @@ function Month({
         ))}
 
         {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
-          <div
+          <Day
             key={day}
-            className="group relative flex aspect-square h-6 w-auto cursor-pointer items-center justify-center text-xs transition md:h-8 md:text-sm"
-          >
-            <div
-              className={cn(
-                "z-2",
-                isDateInSchoolClasses(new Date(year, month - 1, day), calendar)
-                  ? "opacity-100"
-                  : "opacity-50",
-              )}
-            >
-              {day}
-            </div>
-
-            {/* Event Background */}
-            <div className="absolute bottom-0 left-1/2 flex w-full -translate-x-1/2 justify-center gap-0.5">
-              {dateEvents(new Date(year, month - 1, day), calendar).length >
-                0 && (
-                <div
-                  className={cn(
-                    "w-1 h-1 rounded-full opacity-50",
-                    ...dateEvents(new Date(year, month - 1, day), calendar).map(
-                      (event) =>
-                        EVENT_COLORS[event as keyof typeof EVENT_COLORS] ||
-                        "bg-gray-500",
-                    ),
-                  )}
-                />
-              )}
-              {/* <div
-                className={cn(
-                  "w-1 h-1 rounded-full opacity-50",
-                  "bg-gray-500",
-                  )
-                }
-              /> */}
-            </div>
-
-            {/* Hover Background */}
-            <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
-          </div>
+            date={new Date(year, month - 1, day)}
+            calendar={calendar}
+          />
         ))}
       </div>
     </div>
