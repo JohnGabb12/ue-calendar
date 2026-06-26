@@ -248,6 +248,11 @@ function extractCalendarData(html: string): CalendarType | null {
 
   let currentColleges: "CAS" | "Graduate" | "All" | null = null;
 
+  let postingOfGrades: { firstSemester: Date; secondSemester: Date } = {
+    firstSemester: new Date(0),
+    secondSemester: new Date(0),
+  };
+
   $(schoolCalendarTable)
     .find("tr")
     .each((_, row) => {
@@ -317,6 +322,14 @@ function extractCalendarData(html: string): CalendarType | null {
 
       const dataDate = parseScheduleStringToDates(dataDateText, years.start);
       const dataDate2 = parseScheduleStringToDates(dataDateText2, years.end);
+
+      if (dataName.includes("LAST DAY OF POSTING")) {
+        postingOfGrades = {
+          firstSemester: dataDate[0] ?? new Date(0),
+          secondSemester: dataDate2[0] ?? new Date(0),
+        };
+        return;
+      }
 
       if (currentHeader === "PRELIMINARY EXAMINATIONS") {
         preliminaryExams.firstSemester.forEach((exam) => {
@@ -487,6 +500,7 @@ function extractCalendarData(html: string): CalendarType | null {
     departmentalExam: departmentalExams,
     lastRecitationDay: lastRecitationDay,
     summerClasses: summerClasses,
+    postingOfGrades: postingOfGrades,
     // dummy,
   } as CalendarType;
 }

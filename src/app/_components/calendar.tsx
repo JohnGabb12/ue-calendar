@@ -8,16 +8,16 @@ import { CalendarSchema } from "~/lib/types";
 import { z } from "zod";
 
 const EVENT_COLORS = {
-  "admission": "bg-blue-500",
-  "registration": "bg-green-500",
-  "firstDayOfClasses": "bg-yellow-500",
-  "preliminaryExams": "bg-purple-500",
-  "midtermExams": "bg-pink-500",
-  "finalExams": "bg-red-500",
-  "lastRecitationDay": "bg-orange-500",
-  "deadlineForGradesSubmission": "bg-teal-500",
-  "postingOfGrades": "bg-cyan-500",
-  "holidays": "bg-gray-500",
+  admission: "bg-blue-500",
+  registration: "bg-green-500",
+  firstDayOfClasses: "bg-yellow-500",
+  preliminaryExams: "bg-purple-500",
+  midtermExams: "bg-pink-500",
+  finalExams: "bg-red-500",
+  lastRecitationDay: "bg-orange-500",
+  deadlineForGradesSubmission: "bg-teal-500",
+  postingOfGrades: "bg-cyan-500",
+  holidays: "bg-gray-500",
 };
 
 const isDateInSchoolClasses = (
@@ -58,7 +58,6 @@ const dateEvents = (
   date: Date,
   calendar: z.infer<typeof CalendarSchema>,
 ): string[] => {
-  
   const events: string[] = [];
 
   // Check for admission events
@@ -94,9 +93,7 @@ const dateEvents = (
   });
 
   // Check for first day of classes
-  if (
-    calendar.firstDayOfClasses?.firstSemester?.getTime() === date.getTime()
-  ) {
+  if (calendar.firstDayOfClasses?.firstSemester?.getTime() === date.getTime()) {
     events.push("firstDayOfClasses");
   }
   if (
@@ -141,9 +138,43 @@ const dateEvents = (
     }
   });
 
-  return events;
-}
+  // Check for last recitation day
+  if (
+    calendar.lastRecitationDay?.firstSemester?.some(
+      (d) => d.getTime() === date.getTime(),
+    )
+  ) {
+    events.push("lastRecitationDay");
+  }
+  if (
+    calendar.lastRecitationDay?.secondSemester?.some(
+      (d) => d.getTime() === date.getTime(),
+    )
+  ) {
+    events.push("lastRecitationDay");
+  }
 
+  // Check for posting of grades
+  if (
+    calendar.postingOfGrades?.firstSemester?.getTime() === date.getTime()
+  ) {
+    events.push("postingOfGrades");
+  }
+  if (
+    calendar.postingOfGrades?.secondSemester?.getTime() === date.getTime()
+  ) {
+    events.push("postingOfGrades");
+  }
+
+  // Check for holidays
+  calendar.holidays?.forEach((holiday) => {
+    if (holiday.date.some((d) => d.getTime() === date.getTime())) {
+      events.push("holidays");
+    }
+  });
+
+  return events;
+};
 
 function Month({
   year,
@@ -179,7 +210,7 @@ function Month({
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
           <div
             key={day}
-            className="text-foreground/70 flex h-8 w-full items-center justify-center text-xs md:text-sm font-light"
+            className="text-foreground/70 flex h-8 w-full items-center justify-center text-xs font-light md:text-sm"
           >
             <span>{day}</span>
           </div>
@@ -189,13 +220,13 @@ function Month({
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 p-2">
         {Array.from({ length: startOffset }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-6 md:h-8 w-auto aspect-square" />
+          <div key={`empty-${i}`} className="aspect-square h-6 w-auto md:h-8" />
         ))}
 
         {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
           <div
             key={day}
-            className="group relative flex h-6 md:h-8 w-auto aspect-square cursor-pointer items-center justify-center text-xs md:text-sm transition"
+            className="group relative flex aspect-square h-6 w-auto cursor-pointer items-center justify-center text-xs transition md:h-8 md:text-sm"
           >
             <div
               className={cn(
@@ -208,20 +239,29 @@ function Month({
               {day}
             </div>
 
-              {/* Event Background */}
-              {
-                dateEvents(new Date(year, month - 1, day), calendar).length > 0 && (
-                  <div
-                    className={cn(
-                      "absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-50",
-                      ...dateEvents(
-                        new Date(year, month - 1, day),
-                        calendar,
-                      ).map((event) => EVENT_COLORS[event as keyof typeof EVENT_COLORS] || "bg-gray-500"),
-                    )}
-                  />
-                )
-              }
+            {/* Event Background */}
+            <div className="absolute bottom-0 left-1/2 flex w-full -translate-x-1/2 justify-center gap-0.5">
+              {dateEvents(new Date(year, month - 1, day), calendar).length >
+                0 && (
+                <div
+                  className={cn(
+                    "w-1 h-1 rounded-full opacity-50",
+                    ...dateEvents(new Date(year, month - 1, day), calendar).map(
+                      (event) =>
+                        EVENT_COLORS[event as keyof typeof EVENT_COLORS] ||
+                        "bg-gray-500",
+                    ),
+                  )}
+                />
+              )}
+              {/* <div
+                className={cn(
+                  "w-1 h-1 rounded-full opacity-50",
+                  "bg-gray-500",
+                  )
+                }
+              /> */}
+            </div>
 
             {/* Hover Background */}
             <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 rounded-lg opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
@@ -235,9 +275,11 @@ function Month({
 export default function Calendar() {
   const [calendar] = api.calendar.get.useSuspenseQuery();
 
-  const startDate = calendar.admission?.[0]?.dates.firstSemester?.sort(compareDesc)[0];
+  const startDate =
+    calendar.admission?.[0]?.dates.firstSemester?.sort(compareDesc)[0];
   const startMonth = startDate ? startDate.getMonth() : 1;
-  
+
+  console.log(calendar.postingOfGrades?.firstSemester);
 
   return (
     <>
@@ -247,8 +289,8 @@ export default function Calendar() {
       </p>
 
       <div className="w-full max-w-4xl">
-        <h3 className="text-xl text-center p-4">{calendar.years.start}</h3>
-        <div className="grid md:grid-cols-3 gap-4 grid-cols-2">
+        <h3 className="p-4 text-center text-xl">{calendar.years.start}</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {
             // month loop
             Array.from(range(Math.max(startMonth - 3, 1), 12)).map((month) => (
