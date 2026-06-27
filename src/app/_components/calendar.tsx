@@ -5,8 +5,6 @@ import {
   compareAsc,
   compareDesc,
   format,
-  isWithinInterval,
-  isEqual,
 } from "date-fns";
 import { api } from "~/trpc/react";
 import { cn, range } from "~/lib/utils";
@@ -168,6 +166,27 @@ const GE_ASYNCHRONOUS_DATES = [
   new Date(2027, 6, 9),
 ];
 
+// Timezone-safe date equality check
+const isSameDayCustom = (d1: Date | null | undefined, d2: Date | null | undefined) => {
+  if (!d1 || !d2) return false;
+  const date1 = new Date(d1);
+  const date2 = new Date(d2);
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
+// Timezone-safe date interval containment check
+const isWithinIntervalCustom = (d: Date, start: Date | null | undefined, end: Date | null | undefined) => {
+  if (!start || !end) return false;
+  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+  const current = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return current >= s && current <= e;
+};
+
 const getPhilippineHolidays = (year: number) => [
   { name: "New Year's Day", date: [new Date(year, 0, 1)] },
   { name: "Chinese New Year", date: [new Date(year, 1, 17)] },
@@ -255,17 +274,17 @@ const getRangePosition = (
         const sorted = [...item.dates.firstSemester].sort(compareAsc);
         const start = sorted[0]!;
         const end = sorted[sorted.length - 1]!;
-        if (isEqual(date, start)) return isEqual(start, end) ? null : "start";
-        if (isEqual(date, end)) return "end";
-        if (isWithinInterval(date, { start, end })) return "middle";
+        if (isSameDayCustom(date, start)) return isSameDayCustom(start, end) ? null : "start";
+        if (isSameDayCustom(date, end)) return "end";
+        if (isWithinIntervalCustom(date, start, end)) return "middle";
       }
       if (item.dates.secondSemester?.length) {
         const sorted = [...item.dates.secondSemester].sort(compareAsc);
         const start = sorted[0]!;
         const end = sorted[sorted.length - 1]!;
-        if (isEqual(date, start)) return isEqual(start, end) ? null : "start";
-        if (isEqual(date, end)) return "end";
-        if (isWithinInterval(date, { start, end })) return "middle";
+        if (isSameDayCustom(date, start)) return isSameDayCustom(start, end) ? null : "start";
+        if (isSameDayCustom(date, end)) return "end";
+        if (isWithinIntervalCustom(date, start, end)) return "middle";
       }
     }
   }
@@ -279,9 +298,9 @@ const getRangePosition = (
         const sorted = [...item.dates].sort(compareAsc);
         const start = sorted[0]!;
         const end = sorted[sorted.length - 1]!;
-        if (isEqual(date, start)) return isEqual(start, end) ? null : "start";
-        if (isEqual(date, end)) return "end";
-        if (isWithinInterval(date, { start, end })) return "middle";
+        if (isSameDayCustom(date, start)) return isSameDayCustom(start, end) ? null : "start";
+        if (isSameDayCustom(date, end)) return "end";
+        if (isWithinIntervalCustom(date, start, end)) return "middle";
       }
     }
   }
@@ -295,15 +314,15 @@ const isDateInSchoolClasses = (
   const intervals = getSemesterIntervals(calendar);
   if (
     intervals.firstSemester &&
-    isWithinInterval(date, intervals.firstSemester)
+    isWithinIntervalCustom(date, intervals.firstSemester.start, intervals.firstSemester.end)
   )
     return true;
   if (
     intervals.secondSemester &&
-    isWithinInterval(date, intervals.secondSemester)
+    isWithinIntervalCustom(date, intervals.secondSemester.start, intervals.secondSemester.end)
   )
     return true;
-  if (intervals.summer && isWithinInterval(date, intervals.summer)) return true;
+  if (intervals.summer && isWithinIntervalCustom(date, intervals.summer.start, intervals.summer.end)) return true;
   return false;
 };
 
@@ -338,10 +357,10 @@ const dateEvents = (
     }
   };
 
-  if (ASYNCHRONOUS_DATES.some((d) => isEqual(d, date))) {
+  if (ASYNCHRONOUS_DATES.some((d) => isSameDayCustom(d, date))) {
     addEvent("Asynchronous Class Session", "asynch");
   }
-  if (GE_ASYNCHRONOUS_DATES.some((d) => isEqual(d, date))) {
+  if (GE_ASYNCHRONOUS_DATES.some((d) => isSameDayCustom(d, date))) {
     addEvent("GE Asynchronous Class Session", "geasynch");
   }
 
@@ -356,12 +375,12 @@ const dateEvents = (
     };
 
     if (
-      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ||
-      isWithinInterval(date, { start: secondSem.asc, end: secondSem.desc })
+      isWithinIntervalCustom(date, firstSem.asc, firstSem.desc) ||
+      isWithinIntervalCustom(date, secondSem.asc, secondSem.desc)
     )
       addEvent(admission.name + " Admission", "admission-day");
 
-    if (isEqual(firstSem.asc, date) || isEqual(secondSem.asc, date))
+    if (isSameDayCustom(firstSem.asc, date) || isSameDayCustom(secondSem.asc, date))
       addEvent(admission.name + " Admission start date", "admission-first-day");
   });
 
@@ -376,83 +395,83 @@ const dateEvents = (
     };
 
     if (
-      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ||
-      isWithinInterval(date, { start: secondSem.asc, end: secondSem.desc })
+      isWithinIntervalCustom(date, firstSem.asc, firstSem.desc) ||
+      isWithinIntervalCustom(date, secondSem.asc, secondSem.desc)
     )
       addEvent(registration.name + " Registration", "registration-day");
 
-    if (isEqual(firstSem.asc, date) || isEqual(secondSem.asc, date))
+    if (isSameDayCustom(firstSem.asc, date) || isSameDayCustom(secondSem.asc, date))
       addEvent(
         registration.name + " Registration start date",
         "registration-first-day",
       );
   });
 
-  if (isEqual(calendar.firstDayOfClasses?.firstSemester ?? new Date(0), date))
+  if (isSameDayCustom(calendar.firstDayOfClasses?.firstSemester ?? new Date(0), date))
     addEvent("First Day of First Semester", "classes");
-  if (isEqual(calendar.firstDayOfClasses?.secondSemester ?? new Date(0), date))
+  if (isSameDayCustom(calendar.firstDayOfClasses?.secondSemester ?? new Date(0), date))
     addEvent("First Day of Second Semester", "classes");
 
   calendar.preliminaryExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) First Semester Preliminary Exams`, "prelim", exam.college);
   });
   calendar.preliminaryExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) Second Semester Preliminary Exams`, "prelim", exam.college);
   });
 
   calendar.midtermExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) First Semester Midterm Exams`, "midterm", exam.college);
   });
   calendar.midtermExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) Second Semester Midterm Exams`, "midterm", exam.college);
   });
 
   calendar.finalExams?.firstSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) First Semester Final Exams`, "final", exam.college);
   });
   calendar.finalExams?.secondSemester.forEach((exam) => {
-    if (exam.date.some((d) => isEqual(d, date)))
+    if (exam.date.some((d) => isSameDayCustom(d, date)))
       addEvent(`(${classType}) Second Semester Final Exams`, "final", exam.college);
   });
 
-  if (calendar.lastRecitationDay?.firstSemester?.some((d) => isEqual(d, date)))
+  if (calendar.lastRecitationDay?.firstSemester?.some((d) => isSameDayCustom(d, date)))
     addEvent("Last Recitation Day", "classes");
-  if (calendar.lastRecitationDay?.secondSemester?.some((d) => isEqual(d, date)))
+  if (calendar.lastRecitationDay?.secondSemester?.some((d) => isSameDayCustom(d, date)))
     addEvent("Last Recitation Day", "classes");
 
-  if (isEqual(calendar.postingOfGrades?.firstSemester ?? new Date(0), date))
+  if (isSameDayCustom(calendar.postingOfGrades?.firstSemester ?? new Date(0), date))
     addEvent("Posting of Grades", "grades");
-  if (isEqual(calendar.postingOfGrades?.secondSemester ?? new Date(0), date))
+  if (isSameDayCustom(calendar.postingOfGrades?.secondSemester ?? new Date(0), date))
     addEvent("Posting of Grades", "grades");
 
-  if (calendar.summerClasses?.firstDayOfClasses?.some((d) => isEqual(d, date)))
+  if (calendar.summerClasses?.firstDayOfClasses?.some((d) => isSameDayCustom(d, date)))
     addEvent("First Day of Summer Classes", "classes");
-  if (calendar.summerClasses?.midtermExams?.some((d) => isEqual(d, date)))
+  if (calendar.summerClasses?.midtermExams?.some((d) => isSameDayCustom(d, date)))
     addEvent("Midterm Exams for Summer Classes", "midterm");
-  if (calendar.summerClasses?.finalExams?.some((d) => isEqual(d, date)))
+  if (calendar.summerClasses?.finalExams?.some((d) => isSameDayCustom(d, date)))
     addEvent("Final Exams for Summer Classes", "final");
-  if (calendar.summerClasses?.lastRecitationDay?.some((d) => isEqual(d, date)))
+  if (calendar.summerClasses?.lastRecitationDay?.some((d) => isSameDayCustom(d, date)))
     addEvent("Last Recitation Day for Summer Classes", "classes");
 
   if (
     calendar.summerClasses?.deadlineForGradesSubmission?.some((d) =>
-      isEqual(d, date),
+      isSameDayCustom(d, date)
     )
   )
     addEvent("Deadline for Grades Submission for Summer Classes", "grades");
 
   calendar.summerClasses?.admission?.forEach((admission) => {
-    const isAnAdmissionEvent = isEqual(
+    const isAnAdmissionEvent = isSameDayCustom(
       admission.dates?.slice().sort(compareAsc)[0] ?? new Date(0),
       date,
     );
     const isInAdmissionRange =
-      admission.dates?.some((d) => isEqual(d, date)) ?? false;
+      admission.dates?.some((d) => isSameDayCustom(d, date)) ?? false;
     if (isInAdmissionRange)
       addEvent(admission.name + " Summer Admission", "admission-day");
     if (isAnAdmissionEvent)
@@ -463,12 +482,12 @@ const dateEvents = (
   });
 
   calendar.summerClasses?.registration?.forEach((registration) => {
-    const isARegistrationEvent = isEqual(
+    const isARegistrationEvent = isSameDayCustom(
       registration.dates?.slice().sort(compareAsc)[0] ?? new Date(0),
       date,
     );
     const isInRegistrationRange =
-      registration.dates?.some((d) => isEqual(d, date)) ?? false;
+      registration.dates?.some((d) => isSameDayCustom(d, date)) ?? false;
     if (isInRegistrationRange)
       addEvent(registration.name + " Summer Registration", "registration-day");
     if (isARegistrationEvent)
@@ -493,7 +512,7 @@ const dateEvents = (
   });
 
   uniqueHolidaysMap.forEach((datesArray, holidayName) => {
-    if (datesArray.some((d) => isEqual(d, date))) {
+    if (datesArray.some((d) => isSameDayCustom(d, date))) {
       const formattedName = holidayName.replace(/\b\w/g, (c) =>
         c.toUpperCase(),
       );
@@ -504,7 +523,6 @@ const dateEvents = (
   return events;
 };
 
-// Group matching exams onto a single descriptive list item to consolidate linear visual markers on day cards
 const getCompactedIndicators = (events: CalendarEvent[]) => {
   const seenGroupKeys = new Set<string>();
   return events.filter((e) => {
@@ -538,32 +556,22 @@ function Day({
   examCollege: string;
 }) {
   const rawEvents = dateEvents(date, calendar);
-  const isToday = isWithinInterval(Date.now(), {
-    start: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-    end: new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      23,
-      59,
-      59,
-    ),
-  });
+  const isToday = isWithinIntervalCustom(new Date(), date, date);
   const isSunday = date.getDay() === 0;
 
   const intervals = getSemesterIntervals(calendar);
   let activeSemesterKey: SemesterView = "all";
   if (
     intervals.firstSemester &&
-    isWithinInterval(date, intervals.firstSemester)
+    isWithinIntervalCustom(date, intervals.firstSemester.start, intervals.firstSemester.end)
   )
     activeSemesterKey = "firstSemester";
   else if (
     intervals.secondSemester &&
-    isWithinInterval(date, intervals.secondSemester)
+    isWithinIntervalCustom(date, intervals.secondSemester.start, intervals.secondSemester.end)
   )
     activeSemesterKey = "secondSemester";
-  else if (intervals.summer && isWithinInterval(date, intervals.summer))
+  else if (intervals.summer && isWithinIntervalCustom(date, intervals.summer.start, intervals.summer.end))
     activeSemesterKey = "summer";
 
   const isSemesterHidden =
@@ -671,10 +679,8 @@ function Day({
       textColorClass = "text-indigo-600 dark:text-indigo-400 font-bold";
   }
 
-  // Compact indicator lists so we generate one dot per structural block category rather than duplicating lines
   const linearIndicators = getCompactedIndicators(filteredEvents);
 
-  // Group events by descriptive name so multiple colleges share the same display text item with consolidated badge grids
   const displayGroups = React.useMemo(() => {
     const maps = new Map<string, { baseEvent: CalendarEvent; colleges: string[] }>();
     filteredEvents.forEach((event) => {
