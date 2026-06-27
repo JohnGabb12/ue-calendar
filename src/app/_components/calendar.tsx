@@ -197,17 +197,17 @@ const getPhilippineHolidays = (year: number) => [
 
 const getTargetStudentKey = (eventName: string): StudentType => {
   const normalized = eventName.toLowerCase();
-  if (normalized.includes("transferee") ?? normalized.includes("degree holder"))
+  if (normalized.includes("transferee") || normalized.includes("degree holder"))
     return "transferees";
   if (normalized.includes("cross-registrant")) return "cross-registrants";
   if (normalized.includes("all curricular")) return "all-curricular";
   if (
-    normalized.includes("graduate dentistry") ??
-    normalized.includes("gs") ??
+    normalized.includes("graduate dentistry") ||
+    normalized.includes("gs") ||
     normalized.includes("claw")
   )
     return "new-graduates";
-  if (normalized.includes("freshmen") ?? normalized.includes("1st year"))
+  if (normalized.includes("freshmen") || normalized.includes("1st year"))
     return "freshmen";
   return "all";
 };
@@ -215,13 +215,13 @@ const getTargetStudentKey = (eventName: string): StudentType => {
 const getSemesterIntervals = (calendar: z.infer<typeof CalendarSchema>) => {
   const firstSemesterStart = calendar.firstDayOfClasses?.firstSemester;
   const firstSemesterEnd =
-    calendar.finalExams?.firstSemester?.[0]?.date.sort(compareDesc)[0];
+    calendar.finalExams?.firstSemester?.[0]?.date?.slice().sort(compareDesc)[0];
   const secondSemesterStart = calendar.firstDayOfClasses?.secondSemester;
   const secondSemesterEnd =
-    calendar.finalExams?.secondSemester?.[0]?.date.sort(compareDesc)[0];
+    calendar.finalExams?.secondSemester?.[0]?.date?.slice().sort(compareDesc)[0];
   const summerClassesStart = calendar.summerClasses?.firstDayOfClasses?.[0];
   const summerClassesEnd =
-    calendar.summerClasses?.finalExams?.sort(compareDesc)[0];
+    calendar.summerClasses?.finalExams?.slice().sort(compareDesc)[0];
 
   return {
     firstSemester:
@@ -307,11 +307,17 @@ const isDateInSchoolClasses = (
   return false;
 };
 
+interface CalendarEvent {
+  name: string;
+  category: string;
+  college?: string;
+}
+
 const dateEvents = (
   date: Date,
   calendar: z.infer<typeof CalendarSchema>,
-): Set<{ name: string; category: string }> => {
-  const events = new Set<{ name: string; category: string }>();
+): CalendarEvent[] => {
+  const events: CalendarEvent[] = [];
   const classType =
     date.getDay() === 1 || date.getDay() === 3
       ? "MW"
@@ -323,10 +329,13 @@ const dateEvents = (
             ? "Sat"
             : "TBD";
 
-  const alreadyAdded = (eventName: string) =>
-    [...events].some((e) => e.name === eventName);
-  const addEvent = (eventName: string, category: string) => {
-    if (!alreadyAdded(eventName)) events.add({ name: eventName, category });
+  const alreadyAdded = (eventName: string, college?: string) =>
+    events.some((e) => e.name === eventName && e.college === college);
+
+  const addEvent = (eventName: string, category: string, college?: string) => {
+    if (!alreadyAdded(eventName, college)) {
+      events.push({ name: eventName, category, college });
+    }
   };
 
   if (ASYNCHRONOUS_DATES.some((d) => isEqual(d, date))) {
@@ -338,41 +347,41 @@ const dateEvents = (
 
   calendar.admission?.forEach((admission) => {
     const firstSem = {
-      asc: admission.dates.firstSemester?.sort(compareAsc)[0] ?? new Date(0),
-      desc: admission.dates.firstSemester?.sort(compareDesc)[0] ?? new Date(0),
+      asc: admission.dates.firstSemester?.slice().sort(compareAsc)[0] ?? new Date(0),
+      desc: admission.dates.firstSemester?.slice().sort(compareDesc)[0] ?? new Date(0),
     };
     const secondSem = {
-      asc: admission.dates.secondSemester?.sort(compareAsc)[0] ?? new Date(0),
-      desc: admission.dates.secondSemester?.sort(compareDesc)[0] ?? new Date(0),
+      asc: admission.dates.secondSemester?.slice().sort(compareAsc)[0] ?? new Date(0),
+      desc: admission.dates.secondSemester?.slice().sort(compareDesc)[0] ?? new Date(0),
     };
 
     if (
-      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ??
+      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ||
       isWithinInterval(date, { start: secondSem.asc, end: secondSem.desc })
     )
       addEvent(admission.name + " Admission", "admission-day");
 
-    if (isEqual(firstSem.asc, date) ?? isEqual(secondSem.asc, date))
+    if (isEqual(firstSem.asc, date) || isEqual(secondSem.asc, date))
       addEvent(admission.name + " Admission start date", "admission-first-day");
   });
 
   calendar.registration?.forEach((registration) => {
     const firstSem = {
-      asc: registration.dates.firstSemester?.sort(compareAsc)[0] ?? new Date(0),
-      desc: registration.dates.firstSemester?.sort(compareDesc)[0] ?? new Date(0),
+      asc: registration.dates.firstSemester?.slice().sort(compareAsc)[0] ?? new Date(0),
+      desc: registration.dates.firstSemester?.slice().sort(compareDesc)[0] ?? new Date(0),
     };
     const secondSem = {
-      asc: registration.dates.secondSemester?.sort(compareAsc)[0] ?? new Date(0),
-      desc: registration.dates.secondSemester?.sort(compareDesc)[0] ?? new Date(0),
+      asc: registration.dates.secondSemester?.slice().sort(compareAsc)[0] ?? new Date(0),
+      desc: registration.dates.secondSemester?.slice().sort(compareDesc)[0] ?? new Date(0),
     };
 
     if (
-      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ??
+      isWithinInterval(date, { start: firstSem.asc, end: firstSem.desc }) ||
       isWithinInterval(date, { start: secondSem.asc, end: secondSem.desc })
     )
       addEvent(registration.name + " Registration", "registration-day");
 
-    if (isEqual(firstSem.asc, date) ?? isEqual(secondSem.asc, date))
+    if (isEqual(firstSem.asc, date) || isEqual(secondSem.asc, date))
       addEvent(
         registration.name + " Registration start date",
         "registration-first-day",
@@ -386,29 +395,29 @@ const dateEvents = (
 
   calendar.preliminaryExams?.firstSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) First Semester Preliminary Exams`, "prelim");
+      addEvent(`(${classType}) First Semester Preliminary Exams`, "prelim", exam.college);
   });
   calendar.preliminaryExams?.secondSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) Second Semester Preliminary Exams`, "prelim");
+      addEvent(`(${classType}) Second Semester Preliminary Exams`, "prelim", exam.college);
   });
 
   calendar.midtermExams?.firstSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) First Semester Midterm Exams`, "midterm");
+      addEvent(`(${classType}) First Semester Midterm Exams`, "midterm", exam.college);
   });
   calendar.midtermExams?.secondSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) Second Semester Midterm Exams`, "midterm");
+      addEvent(`(${classType}) Second Semester Midterm Exams`, "midterm", exam.college);
   });
 
   calendar.finalExams?.firstSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) First Semester Final Exams`, "final");
+      addEvent(`(${classType}) First Semester Final Exams`, "final", exam.college);
   });
   calendar.finalExams?.secondSemester.forEach((exam) => {
     if (exam.date.some((d) => isEqual(d, date)))
-      addEvent(`(${classType}) Second Semester Final Exams`, "final");
+      addEvent(`(${classType}) Second Semester Final Exams`, "final", exam.college);
   });
 
   if (calendar.lastRecitationDay?.firstSemester?.some((d) => isEqual(d, date)))
@@ -439,7 +448,7 @@ const dateEvents = (
 
   calendar.summerClasses?.admission?.forEach((admission) => {
     const isAnAdmissionEvent = isEqual(
-      admission.dates?.sort(compareAsc)[0] ?? new Date(0),
+      admission.dates?.slice().sort(compareAsc)[0] ?? new Date(0),
       date,
     );
     const isInAdmissionRange =
@@ -455,7 +464,7 @@ const dateEvents = (
 
   calendar.summerClasses?.registration?.forEach((registration) => {
     const isARegistrationEvent = isEqual(
-      registration.dates?.sort(compareAsc)[0] ?? new Date(0),
+      registration.dates?.slice().sort(compareAsc)[0] ?? new Date(0),
       date,
     );
     const isInRegistrationRange =
@@ -495,6 +504,18 @@ const dateEvents = (
   return events;
 };
 
+// Group matching exams onto a single descriptive list item to consolidate linear visual markers on day cards
+const getCompactedIndicators = (events: CalendarEvent[]) => {
+  const seenGroupKeys = new Set<string>();
+  return events.filter((e) => {
+    if (e.category === "asynch" || e.category === "geasynch") return false;
+    const key = `${e.category}-${e.name}`;
+    if (seenGroupKeys.has(key)) return false;
+    seenGroupKeys.add(key);
+    return true;
+  });
+};
+
 function Day({
   date,
   calendar,
@@ -504,6 +525,7 @@ function Day({
   asyncView,
   admissionStudentType,
   registrationStudentType,
+  examCollege,
 }: {
   date: Date;
   calendar: z.infer<typeof CalendarSchema>;
@@ -513,8 +535,9 @@ function Day({
   asyncView: AsyncView;
   admissionStudentType: StudentType;
   registrationStudentType: StudentType;
+  examCollege: string;
 }) {
-  const events = dateEvents(date, calendar);
+  const rawEvents = dateEvents(date, calendar);
   const isToday = isWithinInterval(Date.now(), {
     start: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
     end: new Date(
@@ -548,10 +571,8 @@ function Day({
   const isInSchoolClasses =
     isDateInSchoolClasses(date, calendar) && !isSemesterHidden;
 
-  const eventArr = Array.from(events);
-
-  const hasAsync = eventArr.some((e) => e.category === "asynch");
-  const hasGeAsync = eventArr.some((e) => e.category === "geasynch");
+  const hasAsync = rawEvents.some((e) => e.category === "asynch");
+  const hasGeAsync = rawEvents.some((e) => e.category === "geasynch");
 
   const showAsync =
     !isSemesterHidden &&
@@ -562,10 +583,15 @@ function Day({
     (asyncView === "all" || asyncView === "ge-async") &&
     hasGeAsync;
 
-  const filteredEvents = eventArr.filter((event) => {
+  const filteredEvents = rawEvents.filter((event) => {
     if (isSemesterHidden) return false;
     if (event.category === "asynch") return showAsync;
     if (event.category === "geasynch") return showGeAsync;
+
+    const isExamCategory = ["prelim", "midterm", "final"].includes(event.category);
+    if (isExamCategory && examCollege !== "all" && event.college !== examCollege) {
+      return false;
+    }
 
     const studentGroup = getTargetStudentKey(event.name);
     if (
@@ -616,15 +642,15 @@ function Day({
 
   const containsActiveWholeEvent =
     (filters.admission === "whole-event" &&
-      eventArr.some((e) => {
+      rawEvents.some((e) => {
         if (!e.category.startsWith("admission")) return false;
         return (
           admissionStudentType === "all" ||
           getTargetStudentKey(e.name) === admissionStudentType
         );
-      })) ??
+      })) ||
     (filters.registration === "whole-event" &&
-      eventArr.some((e) => {
+      rawEvents.some((e) => {
         if (!e.category.startsWith("registration")) return false;
         return (
           registrationStudentType === "all" ||
@@ -633,7 +659,7 @@ function Day({
       }));
 
   const shouldDimDay =
-    (isAnyWholeEventActive && !containsActiveWholeEvent) ?? isSemesterHidden;
+    (isAnyWholeEventActive && !containsActiveWholeEvent) || isSemesterHidden;
 
   let textColorClass = isToday
     ? "text-yellow-500 font-bold"
@@ -645,9 +671,23 @@ function Day({
       textColorClass = "text-indigo-600 dark:text-indigo-400 font-bold";
   }
 
-  const linearIndicators = filteredEvents.filter(
-    (e) => e.category !== "asynch" && e.category !== "geasynch",
-  );
+  // Compact indicator lists so we generate one dot per structural block category rather than duplicating lines
+  const linearIndicators = getCompactedIndicators(filteredEvents);
+
+  // Group events by descriptive name so multiple colleges share the same display text item with consolidated badge grids
+  const displayGroups = React.useMemo(() => {
+    const maps = new Map<string, { baseEvent: CalendarEvent; colleges: string[] }>();
+    filteredEvents.forEach((event) => {
+      const key = `${event.category}-${event.name}`;
+      if (!maps.has(key)) {
+        maps.set(key, { baseEvent: event, colleges: [] });
+      }
+      if (event.college) {
+        maps.get(key)!.colleges.push(event.college);
+      }
+    });
+    return Array.from(maps.values());
+  }, [filteredEvents]);
 
   return (
     <HoverCard>
@@ -656,7 +696,6 @@ function Day({
           className={cn(
             "group/day relative flex aspect-square h-6 w-auto cursor-pointer items-center justify-center text-xs transition-all md:h-8 md:text-sm",
             activeRange && rangeColor,
-            // Removed default "rounded-lg" so the body elements construct a seamless grid strip
             activeRange === "start" && "rounded-l-full",
             activeRange === "end" && "rounded-r-full",
             !activeRange && "rounded-lg",
@@ -683,7 +722,7 @@ function Day({
               const config = EVENT_CATEGORIES.find((cat) => cat.id === baseCat);
               return (
                 <div
-                  key={format(date, "yyyy-MM-dd") + event.name}
+                  key={format(date, "yyyy-MM-dd") + event.category + event.name}
                   className={cn(
                     "h-1 grow rounded-full opacity-70",
                     config?.color ?? "bg-gray-500",
@@ -695,35 +734,49 @@ function Day({
           <div className="bg-foreground/5 absolute top-0 left-1/2 aspect-square h-full w-auto -translate-x-1/2 scale-80 rounded-lg opacity-0 transition-all duration-100 group-hover/day:scale-100 group-hover/day:opacity-100" />
         </button>
       </HoverCardTrigger>
-      <HoverCardContent side="top" className="w-fit">
+      <HoverCardContent side="top" className="w-fit max-w-xs">
         <div className="flex flex-col gap-2">
           <div className="text-center text-sm font-medium">
             {format(date, "MMMM dd, yyyy")}
           </div>
           <div className="flex flex-col gap-1">
-            {filteredEvents.length === 0 ? (
+            {displayGroups.length === 0 ? (
               <div className="text-foreground/70 text-center text-sm">
                 No events
               </div>
             ) : (
-              filteredEvents.map((event) => {
-                const baseCat = event.category.split("-")[0]!;
+              displayGroups.map(({ baseEvent, colleges }) => {
+                const baseCat = baseEvent.category.split("-")[0]!;
                 const config = EVENT_CATEGORIES.find(
                   (cat) => cat.id === baseCat,
                 );
                 let dotColor = config?.color ?? "bg-gray-500";
-                if (event.category === "asynch") dotColor = "bg-emerald-500";
-                if (event.category === "geasynch") dotColor = "bg-indigo-500";
+                if (baseEvent.category === "asynch") dotColor = "bg-emerald-500";
+                if (baseEvent.category === "geasynch") dotColor = "bg-indigo-500";
 
                 return (
                   <div
-                    key={format(date, "yyyy-MM-dd") + event.name}
-                    className="relative flex w-full items-center gap-2"
+                    key={format(date, "yyyy-MM-dd") + baseEvent.category + baseEvent.name}
+                    className="flex w-full items-start gap-2 py-0.5"
                   >
                     <div
-                      className={cn("h-2 w-2 shrink-0 rounded-full", dotColor)}
+                      className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", dotColor)}
                     />
-                    <p className="w-full text-left text-sm">{event.name}</p>
+                    <div className="flex flex-col items-start gap-1 grow">
+                      <p className="w-full text-left text-sm leading-tight">{baseEvent.name}</p>
+                      {examCollege === "all" && colleges.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {colleges.map((college) => (
+                            <span
+                              key={college}
+                              className="text-muted-foreground bg-foreground/5 border-muted text-[10px] rounded border px-1 py-0.5 font-medium tracking-wide uppercase whitespace-nowrap"
+                            >
+                              {college}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -745,6 +798,7 @@ function Month({
   asyncView,
   admissionStudentType,
   registrationStudentType,
+  examCollege,
 }: {
   year: number;
   month: number;
@@ -755,6 +809,7 @@ function Month({
   asyncView: AsyncView;
   admissionStudentType: StudentType;
   registrationStudentType: StudentType;
+  examCollege: string;
 }) {
   const date = new Date(year, month - 1, 1);
   const firstDayIndex = date.getDay();
@@ -795,6 +850,7 @@ function Month({
             asyncView={asyncView}
             admissionStudentType={admissionStudentType}
             registrationStudentType={registrationStudentType}
+            examCollege={examCollege}
           />
         ))}
       </div>
@@ -814,6 +870,8 @@ interface FilterContentProps {
   onChangeAdmissionStudentType: (value: StudentType) => void;
   registrationStudentType: StudentType;
   onChangeRegistrationStudentType: (value: StudentType) => void;
+  examCollege: string;
+  onChangeExamCollege: (value: string) => void;
 }
 
 function FilterContent({
@@ -828,6 +886,8 @@ function FilterContent({
   onChangeAdmissionStudentType,
   registrationStudentType,
   onChangeRegistrationStudentType,
+  examCollege,
+  onChangeExamCollege,
 }: FilterContentProps) {
   const getAvailableOptionsForCategory = (
     catId: "admission" | "registration",
@@ -844,6 +904,30 @@ function FilterContent({
 
     return STUDENT_CATEGORIES.filter((st) => activeKeys.has(st.id));
   };
+
+  const derivedColleges = React.useMemo(() => {
+    const colleges = new Set<string>();
+    const examTypes = ["preliminaryExams", "midtermExams", "finalExams"] as const;
+    const semesters = ["firstSemester", "secondSemester"] as const;
+
+    examTypes.forEach((type) => {
+      const examBlock = calendar[type];
+      if (examBlock) {
+        semesters.forEach((sem) => {
+          const examArr = examBlock[sem];
+          if (Array.isArray(examArr)) {
+            examArr.forEach((item) => {
+              if (item?.college) {
+                colleges.add(item.college);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    return Array.from(colleges).sort();
+  }, [calendar]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -874,6 +958,27 @@ function FilterContent({
               <SelectItem value="summer" className="text-xs">
                 Summer Classes
               </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+            Examination Scope
+          </p>
+          <Select value={examCollege} onValueChange={onChangeExamCollege}>
+            <SelectTrigger className="bg-background h-9 w-full rounded-xl text-xs">
+              <SelectValue placeholder="Select Target College" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all" className="text-xs">
+                All Colleges
+              </SelectItem>
+              {derivedColleges.map((college) => (
+                <SelectItem key={college} value={college} className="text-xs">
+                  {college}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -924,7 +1029,6 @@ function FilterContent({
                     ? onChangeAdmissionStudentType
                     : onChangeRegistrationStudentType;
 
-                // Get filtered, valid cohorts that exist inside data records
                 const validOptions = getAvailableOptionsForCategory(
                   category.id as "admission" | "registration",
                 );
@@ -1041,10 +1145,11 @@ function FilterContent({
 
 export default function Calendar() {
   const [calendar] = api.calendar.get.useSuspenseQuery(undefined, {
-    staleTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 1000 * 60 * 60,
     refetchOnWindowFocus: false,
   });
   const [semesterView, setSemesterView] = React.useState<SemesterView>("all");
+  const [examCollege, setExamCollege] = React.useState<string>("all");
   const [asyncView, setAsyncView] = React.useState<AsyncView>("hide");
   const [admissionStudentType, setAdmissionStudentType] =
     React.useState<StudentType>("all");
@@ -1071,7 +1176,8 @@ export default function Calendar() {
   const startMonth = calendar.firstDayOfClasses?.firstSemester?.getMonth() ?? 0;
   const endMonth =
     calendar.summerClasses?.deadlineForGradesSubmission
-      ?.sort(compareDesc)[0]
+      ?.slice()
+      .sort(compareDesc)[0]
       ?.getMonth() ?? 11;
 
   return (
@@ -1112,6 +1218,8 @@ export default function Calendar() {
                   onChangeAdmissionStudentType={setAdmissionStudentType}
                   registrationStudentType={registrationStudentType}
                   onChangeRegistrationStudentType={setRegistrationStudentType}
+                  examCollege={examCollege}
+                  onChangeExamCollege={setExamCollege}
                 />
               </div>
               <DrawerFooter className="pt-4">
@@ -1129,7 +1237,7 @@ export default function Calendar() {
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_240px]">
         <div className="calendar-container w-full [&:hover_.month-card:not(:hover)]:opacity-80">
           <div className="flex w-full flex-wrap justify-center gap-4">
-            {Array.from(range(startMonth, 12)).map((month) => (
+            {Array.from(range(startMonth - 1, 12)).map((month) => (
               <Month
                 key={`start-${month}`}
                 year={calendar.years.start}
@@ -1140,6 +1248,7 @@ export default function Calendar() {
                 asyncView={asyncView}
                 admissionStudentType={admissionStudentType}
                 registrationStudentType={registrationStudentType}
+                examCollege={examCollege}
               />
             ))}
             {Array.from(range(1, endMonth + 1)).map((month) => (
@@ -1153,6 +1262,7 @@ export default function Calendar() {
                 asyncView={asyncView}
                 admissionStudentType={admissionStudentType}
                 registrationStudentType={registrationStudentType}
+                examCollege={examCollege}
               />
             ))}
           </div>
@@ -1171,6 +1281,8 @@ export default function Calendar() {
             onChangeAdmissionStudentType={setAdmissionStudentType}
             registrationStudentType={registrationStudentType}
             onChangeRegistrationStudentType={setRegistrationStudentType}
+            examCollege={examCollege}
+            onChangeExamCollege={setExamCollege}
           />
         </aside>
       </div>
