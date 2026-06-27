@@ -203,8 +203,6 @@ function Day({
 }) {
   const events = dateEvents(date, calendar);
 
-  console.log(`Events for ${format(date, "yyyy-MM-dd")}:`, Array.from(events));
-
   return (
     <div
       className={cn(
@@ -222,12 +220,12 @@ function Day({
       </div>
 
       {/* Event Background */}
-      <div className="absolute bottom-0 left-1/2 flex w-fit -translate-x-1/2 flex-col justify-center">
+      <div className="absolute bottom-0 left-1/2 flex w-14/15 -translate-x-1/2 flex-row gap-0.5 justify-center">
         {Array.from(events).map((event) => (
           <div
             key={format(date, "yyyy-MM-dd") + event.name}
             className={cn(
-              "h-1 w-1 rounded-full opacity-50",
+              "h-1 grow rounded-full opacity-50",
               EVENT_CATEGORIES.find((cat) => cat.name === event.category)
                 ?.color || "bg-gray-500",
             )}
@@ -271,11 +269,11 @@ function Month({
       </div>
 
       {/* Days of the week header */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 w-fit mx-auto">
         {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day) => (
           <div
             key={day}
-            className="text-foreground/70 flex h-8 w-full items-center justify-center text-xs font-light md:text-sm"
+            className="text-foreground/70 flex h-6 md:h-8 w-auto aspect-square items-center justify-center text-xs font-light md:text-sm"
           >
             <span>{day}</span>
           </div>
@@ -311,20 +309,34 @@ export default function Calendar() {
 
   return (
     <>
-      <h2 className="text-2xl font-bold">{calendar.title}</h2>
-      <p className="text-lg">
+      <h2 className="text-2xl text-center font-bold">{calendar.title}</h2>
+      <p className="text-lg text-center">
         Academic Year: {calendar.years.start} - {calendar.years.end}
       </p>
 
       <div className="w-full max-w-4xl">
         <h3 className="p-4 text-center text-xl">{calendar.years.start}</h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 w-fit mx-auto mb-8">
           {
             // month loop
-            Array.from(range(Math.max(startMonth - 3, 1), 12)).map((month) => (
+            Array.from(range(1, 12)).map((month) => (
               <Month
                 key={month}
                 year={calendar.years.start}
+                month={month}
+                calendar={calendar}
+              />
+            ))
+          }
+        </div>
+        <h3 className="p-4 text-center text-xl">{calendar.years.end}</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 w-fit mx-auto">
+          {
+            // month loop
+            Array.from(range(1, 12)).map((month) => (
+              <Month
+                key={month}
+                year={calendar.years.end}
                 month={month}
                 calendar={calendar}
               />

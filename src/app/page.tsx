@@ -15,7 +15,7 @@ export default async function Home() {
   return (
     <HydrateClient>
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 w-full selection:bg-primary selection:text-primary-foreground">
-        <h1 className="text-4xl font-bold">University of the East Calendar</h1>
+        <h1 className="text-4xl font-bold text-center">University of the East Calendar</h1>
         <Calendar />
       </main>
     </HydrateClient>
