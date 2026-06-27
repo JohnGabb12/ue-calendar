@@ -1,10 +1,8 @@
 import {
-  parse,
   isValid,
   isBefore,
   isSameDay,
   addDays,
-  formatDate,
 } from "date-fns";
 
 export function getDaysArray(start: Date, end: Date): Date[] {

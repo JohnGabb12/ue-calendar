@@ -6,6 +6,7 @@ import { Geist, Outfit } from "next/font/google";
 import { TRPCReactProvider } from "~/trpc/react";
 import { cn } from "~/lib/utils";
 import { ThemeProvider } from "~/components/theme-provider";
+import { TooltipProvider } from "~/components/ui/tooltip";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -30,14 +31,16 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TRPCReactProvider>{children}</TRPCReactProvider>
-        </ThemeProvider>
+        <TooltipProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <TRPCReactProvider>{children}</TRPCReactProvider>
+          </ThemeProvider>
+        </TooltipProvider>
       </body>
     </html>
   );
