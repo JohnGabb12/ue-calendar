@@ -22,6 +22,14 @@ const EVENT_CATEGORIES = [
   { name: "final", color: "bg-red-500" },
   { name: "grades", color: "bg-cyan-500" },
   { name: "holidays", color: "bg-gray-500" },
+  
+  // summer
+  { name: "summer-admission", color: "bg-blue-800" },
+  { name: "summer-registration", color: "bg-green-800" },
+  { name: "summer-classes", color: "bg-yellow-800" },
+  { name: "summer-midterm", color: "bg-pink-800" },
+  { name: "summer-final", color: "bg-red-800" },
+  { name: "summer-grades", color: "bg-cyan-800" },
 ];
 
 const isDateInSchoolClasses = (
@@ -34,6 +42,8 @@ const isDateInSchoolClasses = (
   const secondSemesterStart = calendar.firstDayOfClasses?.secondSemester;
   const secondSemesterEnd =
     calendar.finalExams?.secondSemester?.[0]?.date.sort(compareDesc)[0];
+  const summerClassesStart = calendar.summerClasses?.firstDayOfClasses?.[0];
+  const summerClassesEnd = calendar.summerClasses?.finalExams?.sort(compareDesc)[0];
 
   if (firstSemesterStart && firstSemesterEnd) {
     if (
@@ -50,6 +60,16 @@ const isDateInSchoolClasses = (
       isWithinInterval(date, {
         start: secondSemesterStart,
         end: secondSemesterEnd,
+      })
+    ) {
+      return true;
+    }
+  }
+  if (summerClassesStart && summerClassesEnd) {
+    if (
+      isWithinInterval(date, {
+        start: summerClassesStart,
+        end: summerClassesEnd,
       })
     ) {
       return true;
@@ -181,6 +201,53 @@ const dateEvents = (
     events.add({ name: "Posting of Grades", category: "grades" });
   }
 
+  // Check for summer classes
+  if (calendar.summerClasses?.firstDayOfClasses?.some((d) => isEqual(d, date))) {
+    events.add({ name: "First Day of Summer Classes", category: "summer-classes" });
+  }
+
+  // Check for summer exams
+  if (calendar.summerClasses?.midtermExams?.some((d) => isEqual(d, date))) {
+    events.add({ name: "Midterm Exams for Summer Classes", category: "summer-midterm" });
+  }
+  if (calendar.summerClasses?.finalExams?.some((d) => isEqual(d, date))) {
+    events.add({ name: "Final Exams for Summer Classes", category: "summer-final" });
+  }
+
+  // Check for last recitation day for summer classes
+  if (calendar.summerClasses?.lastRecitationDay?.some((d) => isEqual(d, date))) {
+    events.add({ name: "Last Recitation Day for Summer Classes", category: "summer-classes" });
+  }
+
+  // Check for deadline grades
+  if (calendar.summerClasses?.deadlineForGradesSubmission?.some((d) => isEqual(d, date))) {
+    events.add({ name: "Deadline for Grades Submission for Summer Classes", category: "summer-grades" });
+  }
+
+  // Check for summer admission and registration
+  calendar.summerClasses?.admission?.forEach((admission) => {
+    if (
+      isEqual(admission.dates?.sort(compareAsc)[0] as Date, date) &&
+      ![...events].some((e) => e.name === admission.name)
+    ) {
+      events.add({ name: admission.name, category: "summer-admission" });
+    }
+  });
+
+  calendar.summerClasses?.registration?.forEach((registration) => {
+    if (
+      isEqual(registration.dates?.sort(compareAsc)[0] as Date, date) &&
+      ![...events].some((e) => e.name === registration.name)
+    ) {
+      events.add({ name: registration.name, category: "summer-registration" });
+    }
+  });
+
+
+
+
+
+
   // Check for holidays
   calendar.holidays?.forEach((holiday) => {
     if (holiday.date.some((d) => d.getTime() === targetTime)) {
@@ -214,6 +281,7 @@ function Day({
         className={cn(
           "z-2",
           isDateInSchoolClasses(date, calendar) ? "opacity-100" : "opacity-50",
+          date.getDay() === 0 ? "text-foreground/50" : "text-foreground",
         )}
       >
         {date.getDate()}
