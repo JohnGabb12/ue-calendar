@@ -1,22 +1,52 @@
+# Unofficial UE Calendar Project 📅✨
 
-<h1 align="center">UE Calendar</h1>
-<p align="center">This is a calendar made for losers like me who doesn't understand table date ranges in the official calendar.</p>
-<p align="center">It dynamically displays schedule and auto updates whenever the official website updates.</p>
+An independent, interactive visual conversion of the official University of the East academic calendar. It exists purely because dense, table layout date ranges are a pain to read through, and I believe a more modern and visually appealing UI is needed.
 
->### ⚖️ Legal Disclaimer
->This is an **unofficial calendar, self-maintained project**. It is completely independent and has **no affiliation, endorsement, sponsorship, or official connection** with University of the East, or any of its subsidiaries or affiliates.
->
->The official schedule and authoritative data should always be verified directly on the official website at: **[ue.edu.ph](https://www.ue.edu.ph/mla/school-calendar-events-activities/)**
->
->All product names, logos, brands, and trademarked data referenced within this software are the property of their respective trademark holders. Use of these names, trademarks, and brands does not imply endorsement or affiliation.
+> **Disclaimer:** This is a personal, open-source project. It is **not affiliated with, authorized, or endorsed by the University of the East**.
 
-## 🛠️ How It Works
-- This repository contains the frontend and an api that fetches data from the official website.
-- The repository aside from holidays, **does not store, host, or redistribute** proprietary or copyrighted data assets. It functions purely as an open-source tool to format and visualize public schedule information for personal convenience.
+---
+
+## 🛑 The "Save My Sanity" Disclaimer (Read Before Using)
+
+### 1. No Affiliation
+
+This repository and its deployed application are entirely unofficial. All data is parsed from public-domain academic calendars released by the university. I do not speak for the university, nor do I represent their administrative department.
+
+### 2. Accuracy & Liability
+
+While every effort is made to extract and sync data accurately via automated cron jobs, anomalies, structure changes, or unannounced updates on the official website can cause items to be missing or incorrect.
+
+- **Do not use this application as your sole source of truth for high-stakes academic deadlines** (e.g., enrollment, adding/dropping subjects, midterm/final exams).
+- Always cross-reference critical dates with official university channels. The maintainer accepts zero liability for missed deadlines, crashed schedules, or academic mishaps.
+
+---
+
+## 🛠️ Project State & Tech Stack
+
+Let’s be completely honest: the codebase behind this project is absolute **dog water**. I probably questioned my entire life path and stared at the screen crying while making this. It was born out of pure frustration with standard table layouts, but it gets the job done.
+
+- **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS, Shadcn UI
+- **State & Data:** TanStack Ecosystem (Router/Query), Zod (for validation parsing)
+- **Backend/Storage:** Upstash (Redis/Serverless DB) for scraped calendar data caching. It has a prisma db and next auth built in but has no use.
+
+### The Public API
+
+Yes, the API is public if you know where to look. Feel free to use the parsed endpoints for your own personal developer tools or scripts, provided you handle the data responsibly.
+
+---
+
+## 🤝 Contributing & Support
+
+Because this is an independent project managed entirely by a solo contributor (for now), fixes might happen on a "whenever I have free time" basis. If you can improve this garbage of a code then please, teach me thy ways.
+
+If you spot a data parsing discrepancy or a bug:
+
+1. Open an Issue outlining the incorrect date vs. the official source.
+2. Submit a Pull Request if you want to help fix my garbage code.
+
+---
 
 ## 📜 License
-This project is open-source software licensed under the MIT License.
-The software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software. See the LICENSE file for details.
 
-## 📬 Notice to Rightsholders
-This project is built purely out of passion and utility for the myself and others. If you are an official representative of University of the East and object to this unofficial visualization tool, or would like it modified or taken down, please open an Issue or contact the maintainer directly at [valencerina.johngabrielle@ue.edu.ph](valencerina.johngabrielle@ue.edu.ph). We will promptly comply with any official requests.
+This project is open-source and available under the [MIT License](LICENSE).
+_Note: The actual academic schedule data, names, and trademarks belong entirely to their respective rightful owners (University of the East)._
