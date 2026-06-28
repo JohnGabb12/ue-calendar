@@ -2,9 +2,7 @@ import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { type z } from "zod";
 import * as cheerio from "cheerio";
 import { TRPCError } from "@trpc/server";
-import {
-  parseScheduleStringToDates,
-} from "~/lib/util";
+import { parseScheduleStringToDates } from "~/lib/util";
 import { CalendarSchema } from "~/lib/types";
 
 const CALENDAR_URL =
@@ -287,7 +285,8 @@ function extractCalendarData(html: string): CalendarType | null {
         currentColleges = "Graduate";
         return;
       }
-      if (currentHeader === null) return; // skip rows that are not under a header
+      if (currentHeader === null && !dataName.includes("LAST DAY OF POSTING"))
+        return; // skip rows that are not under a header
 
       // get dates
       const dataDateText = $(cells[1]).text().trim();
@@ -324,6 +323,7 @@ function extractCalendarData(html: string): CalendarType | null {
       const dataDate2 = parseScheduleStringToDates(dataDateText2, years.end);
 
       // dummy.push(dataName)
+      
       if (dataName.includes("LAST DAY OF POSTING")) {
         // dummy.push("Posting of Grades");
         postingOfGrades = {
