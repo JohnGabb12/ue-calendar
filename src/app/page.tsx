@@ -24,7 +24,7 @@ export default async function Home() {
       </main>
       <footer className="flex w-full items-center flex-col justify-center gap-2 p-4 text-sm text-muted-foreground">
         <p className="flex items-center gap-2">
-          Made with Bryan's food menu by
+          Made with Bryan&apos;s food menu by
           <a
             href="https://github.com/JohnGabb12/"
             target="_blank"

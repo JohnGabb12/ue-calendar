@@ -61,7 +61,7 @@ export default function Popup() {
               of the official University of the East calendar. It exists purely
               because dense, table layout date ranges are a pain to read
               through, and I believe a more modern and visually appealing UI is
-              needed. Consider this a developer's attempt to make it more
+              needed. Consider this a developer&apos;s attempt to make it more
               gorgeous.
             </p>
 
