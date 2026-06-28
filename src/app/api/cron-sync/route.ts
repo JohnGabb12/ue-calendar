@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     await redis.set("calendar_cache", validatedData);
 
     return NextResponse.json({ success: true, updated: new Date().toISOString() });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) { //dont use any
+    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
 }

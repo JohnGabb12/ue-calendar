@@ -2,7 +2,7 @@ import { type z } from "zod";
 import * as cheerio from "cheerio";
 import { parseScheduleStringToDates } from "~/lib/util";
 import { TRPCError } from "@trpc/server";
-import { CalendarSchema } from "~/lib/types";
+import { type CalendarSchema } from "~/lib/types";
 
 const CATEGORY_PREFIXES = {
   admission: "-ADMISSION –",
