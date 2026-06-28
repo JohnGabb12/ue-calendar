@@ -1591,7 +1591,7 @@ export default function Calendar() {
                   Configure active properties and category groups.
                 </DrawerDescription>
               </DrawerHeader>
-              <div className="max-h-[70vh] overflow-y-auto p-4 pb-0">
+              <div className="max-h-[50vh] overflow-y-auto p-4 pb-0">
                 <FilterContent
                   calendar={calendar}
                   filters={filters}
