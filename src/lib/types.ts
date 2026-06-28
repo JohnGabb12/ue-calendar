@@ -85,8 +85,8 @@ export const CalendarSchema = z.object({
       z.object({
         name: z.string(),
         dates: z.object({
-          firstSemester: z.array(z.date()),
-          secondSemester: z.array(z.date()),
+          firstSemester: z.array(z.coerce.date()),
+          secondSemester: z.array(z.coerce.date()),
         }),
       }),
     )
@@ -97,8 +97,8 @@ export const CalendarSchema = z.object({
       z.object({
         name: z.string(),
         dates: z.object({
-          firstSemester: z.array(z.date()),
-          secondSemester: z.array(z.date()),
+          firstSemester: z.array(z.coerce.date()),
+          secondSemester: z.array(z.coerce.date()),
         }),
       }),
     )
@@ -106,18 +106,18 @@ export const CalendarSchema = z.object({
 
   firstDayOfClasses: z
     .object({
-      firstSemester: z.date(),
-      secondSemester: z.date(),
+      firstSemester: z.coerce.date(),
+      secondSemester: z.coerce.date(),
     })
     .optional(),
 
   preliminaryExams: z
     .object({
       firstSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
       secondSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
     })
     .optional(),
@@ -125,10 +125,10 @@ export const CalendarSchema = z.object({
   midtermExams: z
     .object({
       firstSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
       secondSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
     })
     .optional(),
@@ -136,36 +136,36 @@ export const CalendarSchema = z.object({
   finalExams: z
     .object({
       firstSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
       secondSemester: z.array(
-        z.object({ college: z.string(), date: z.array(z.date()) }),
+        z.object({ college: z.string(), date: z.array(z.coerce.date()) }),
       ),
     })
     .optional(),
 
-  departmentalExam: z.date().optional(),
+  departmentalExam: z.coerce.date().optional(),
 
   holidays: z
     .array(
       z.object({
         name: z.string(),
-        date: z.array(z.date()),
+        date: z.array(z.coerce.date()),
       }),
     )
     .optional(),
 
   lastRecitationDay: z
     .object({
-      firstSemester: z.array(z.date()),
-      secondSemester: z.array(z.date()),
+      firstSemester: z.array(z.coerce.date()),
+      secondSemester: z.array(z.coerce.date()),
     })
     .optional(),
 
   postingOfGrades: z
     .object({
-      firstSemester: z.date(),
-      secondSemester: z.date(),
+      firstSemester: z.coerce.date(),
+      secondSemester: z.coerce.date(),
     })
     .optional(),
 
@@ -174,7 +174,7 @@ export const CalendarSchema = z.object({
       .array(
         z.object({
           name: z.string(),
-          dates: z.array(z.date()),
+          dates: z.array(z.coerce.date()),
         }),
       )
       .optional(),
@@ -183,16 +183,16 @@ export const CalendarSchema = z.object({
       .array(
         z.object({
           name: z.string(),
-          dates: z.array(z.date()),
+          dates: z.array(z.coerce.date()),
         }),
       )
       .optional(),
 
-    firstDayOfClasses: z.array(z.date()).optional(),
-    midtermExams: z.array(z.date()).optional(),
-    finalExams: z.array(z.date()).optional(),
-    lastRecitationDay: z.array(z.date()).optional(),
-    deadlineForGradesSubmission: z.array(z.date()).optional(),
+    firstDayOfClasses: z.array(z.coerce.date()).optional(),
+    midtermExams: z.array(z.coerce.date()).optional(),
+    finalExams: z.array(z.coerce.date()).optional(),
+    lastRecitationDay: z.array(z.coerce.date()).optional(),
+    deadlineForGradesSubmission: z.array(z.coerce.date()).optional(),
   }).optional(),
 
   dummy: z.any().optional(),
