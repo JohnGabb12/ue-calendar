@@ -7,6 +7,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 import { cn } from "~/lib/utils";
 import { ThemeProvider } from "~/components/theme-provider";
 import { TooltipProvider } from "~/components/ui/tooltip";
+import { Analytics } from "@vercel/analytics/next"
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -41,6 +42,7 @@ export default function RootLayout({
             <TRPCReactProvider>{children}</TRPCReactProvider>
           </ThemeProvider>
         </TooltipProvider>
+        <Analytics />
       </body>
     </html>
   );
